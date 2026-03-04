@@ -25,8 +25,11 @@ def start_client():
 
     threading.Thread(target= receive_messages, args=(client_socket,), daemon=True).start()
 
+
+    show_commands()
+
     while authenticated:
-        message = input("Enter message (or 'exit'): ")
+        message = input("Select option from command list (or 'exit'): ")
 
         if message.lower() == "exit":
             break
@@ -55,12 +58,20 @@ def login(client_socket):
     password = input("Enter password:  ")
     authenticate(username,password,client_socket)
     response= client_socket.recv(1024.decode)
-    if response="SUCCESS":
+    if response ="SUCCESS":
         authenticated =True
     else authenticated =False
 
 
     return authenticated
+
+def show_commands():
+    print("Select a command from the list below!") ## This method prompts the user to Login or sign-up
+    print("1. Private Message") ## Login for existing users
+    print("2. Message Group") ## sign-up for new users
+    print("3. Create New Group")
+    print("4. Join Group")
+    
 
 
 def show_menu():
