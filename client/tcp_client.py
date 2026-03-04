@@ -1,7 +1,9 @@
 from socket import *
+import threading
 
 SERVER_HOST = "localhost"
 SERVER_PORT = 12000
+
 
 
 def start_client():
@@ -10,7 +12,20 @@ def start_client():
 
     print("Connected to server.")
 
-    while True:
+    choice = show_menu()
+
+    authenticated = False
+
+    if choice =="1":
+        authenticated = login(client_socket)
+    elif choice =="2":
+        authenticated=sign_up(client_socket)
+    else:
+        print("Invalid Input!")
+
+    threading.Thread(target= receive_messages, args=(client_socket,), daemon=True).start()
+
+    while authenticated:
         message = input("Enter message (or 'exit'): ")
 
         if message.lower() == "exit":
@@ -23,8 +38,30 @@ def start_client():
 
     client_socket.close()
 
-def login():
+def receive_messages(client_socket):
+    while True:
+        data = client_socket.recv(1024).decode()
+        print(data)
+        
+
+def authenticate(username,password, client_socket):
+    message_string="Authenticate/"+username+"/"+password
+    client_socket.send(message_string.encode())
+
+
+
+def login(client_socket):
     username = input("Enter username: ")
+    password = input("Enter password:  ")
+    authenticate(username,password,client_socket)
+    response= client_socket.recv(1024.decode)
+    if response="SUCCESS":
+        authenticated =True
+    else authenticated =False
+
+
+    return authenticated
+
 
 def show_menu():
     print("Welcome to ChatApp!") ## This method prompts the user to Login or sign-up
@@ -34,20 +71,15 @@ def show_menu():
     return reply
 
  
-def sign_up():
-    username=input()
-
+def sign_up(client_socket):
+    username=input("Enter a username: ")
+    password=input("Enter a password: ")
+    message_string=input("NewUser"+"/"+username+"/"+password)
+    client_socket.send(message_string.encode())
+    return valid
 
 def main():
     ##start_client()
-    choice = show_menu()
-
-    if choice =="1":
-        login()
-    elif choice =="2":
-        sign_up()
-    else:
-        print("Invalid Input!")
 
 
 
