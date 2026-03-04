@@ -23,6 +23,35 @@ def start_client():
 
     client_socket.close()
 
+def login():
+    username = input("Enter username: ")
+
+def show_menu():
+    print("Welcome to ChatApp!") ## This method prompts the user to Login or sign-up
+    print("1. Login") ## Login for existing users
+    print("2. Sign-up") ## sign-up for new users
+    reply = input("Select option: ")
+    return reply
+
+ 
+def sign_up():
+    username=input()
+
+
+def main():
+    ##start_client()
+    choice = show_menu()
+
+    if choice =="1":
+        login()
+    elif choice =="2":
+        sign_up()
+    else:
+        print("Invalid Input!")
+
+
+
+
 
 if __name__ == "__main__":
-    start_client()
+    main()
