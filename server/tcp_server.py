@@ -25,22 +25,23 @@ def start_server():
 def handle_client(connection_socket, addr):
     while True:
         try:
-            data = connection_socket.recv(1024)
-            if not data:
+            sequence_number, body = receive_packet(connection_socket)
+            if sequence_number is None:
                 break
 
-            message = data.decode()
-            print(f"[{addr}] {message}")
+            message = body.decode()
+            print(f"[{addr}] Seq {sequence_number}: {message}")
 
-            # Echo back for now
-            connection_socket.send(f"Server received: {message}".encode())
+            response_body = f"Server received: {message}".encode()
+            response_packet = encode_packet(sequence_number, response_body)
+            connection_socket.sendall(response_packet)
 
-        except:
+        except Exception as e:
+            print(f"Error with {addr}: {e}")
             break
 
     print(f"Connection closed: {addr}")
     connection_socket.close()
-
 
 if __name__ == "__main__":
     start_server()
