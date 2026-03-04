@@ -14,7 +14,7 @@ def encode_packet(sequence_number, body_bytes):
     return header + body_bytes
 
 def decode_header(header_bytes):
-    return struct.unpack(...)
+    return struct.unpack(HEADER_FORMAT, header_bytes)
 
 def recv_exact(sock, n):
     data = b''
