@@ -23,17 +23,21 @@ def start_server():
 
 
 def handle_client(connection_socket, addr):
+    import sys, os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from protocol import receive_packet, encode_packet
+    
     while True:
         try:
-            sequence_number, body = receive_packet(connection_socket)
-            if sequence_number is None:
+            from protocol import receive_packet, encode_packet
+            sequence_number, message_type, body = receive_packet(connection_socket)
+            if sequence_number is None: # Connection closed
                 break
 
-            message = body.decode()
-            print(f"[{addr}] Seq {sequence_number}: {message}")
+            print(f"[{addr}] Received: {body}")
 
-            response_body = f"Server received: {message}".encode()
-            response_packet = encode_packet(sequence_number, response_body)
+            response_body = f"Server received: {body}"
+            response_packet = encode_packet(sequence_number, "ACK", response_body)
             connection_socket.sendall(response_packet)
 
         except Exception as e:

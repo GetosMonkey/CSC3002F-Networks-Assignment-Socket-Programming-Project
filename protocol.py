@@ -1,39 +1,23 @@
-import struct
-
-# Header format:
-# 4 bytes sequence number
-# 4 bytes content length
-
-HEADER_FORMAT = "!II"
-HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
-
-
-def encode_packet(sequence_number, body_bytes):
-    content_length = len(body_bytes)
-    header = struct.pack(HEADER_FORMAT, sequence_number, content_length)
-    return header + body_bytes
-
-def decode_header(header_bytes):
-    return struct.unpack(HEADER_FORMAT, header_bytes)
-
-def recv_exact(sock, n):
-    data = b''
-    while len(data) < n:
-        packet = sock.recv(n - len(data))
-        if not packet:
-            return None
-        data += packet
-    return data
+def encode_packet(sequence_number, message_type, body_text):
+    """
+    Encodes a message into a simple text format followed by a newline.
+    (Kept simple to be compatible with a raw socket client like telnet or `tcp_client.py`)
+    """
+    if not body_text.endswith('\n'):
+        body_text += '\n'
+    return body_text.encode('utf-8')
 
 def receive_packet(sock):
-    header = recv_exact(sock, HEADER_SIZE)
-    if not header:
-        return None, None
-
-    sequence_number, content_length = decode_header(header)
-
-    body = recv_exact(sock, content_length)
-    if not body:
-        return None, None
-
-    return sequence_number, body
+    """
+    Reads a simple string message from the socket.
+    """
+    try:
+        data = sock.recv(1024)
+        if not data:
+            return None, None, None # Connection closed
+            
+        body_text = data.decode('utf-8').strip()
+        return 1, "DATA", body_text
+    except Exception:
+        return None, None, None
+    
