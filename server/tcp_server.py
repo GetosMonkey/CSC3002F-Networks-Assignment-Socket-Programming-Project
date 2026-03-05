@@ -1,9 +1,12 @@
+import sys, os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from socket import *
 import threading
+from protocol import receive_packet, encode_packet  # type: ignore
 
 SERVER_PORT = 12000
 SERVER_HOST = ''
-
 
 def start_server():
     server_socket = socket(AF_INET, SOCK_STREAM)
@@ -23,13 +26,8 @@ def start_server():
 
 
 def handle_client(connection_socket, addr):
-    import sys, os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from protocol import receive_packet, encode_packet
-    
     while True:
         try:
-            from protocol import receive_packet, encode_packet
             sequence_number, message_type, body = receive_packet(connection_socket)
             if sequence_number is None: # Connection closed
                 break
