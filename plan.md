@@ -241,3 +241,50 @@ Our `protocol.py` automatically injects a trailing newline (`\n`) onto the end o
 **3. The Threading Race Condition (The Silent Killer)**
 `tcp_client.py` spun up a background thread `receive_messages` to constantly listen to the socket and print server responses. However, further down in the `while authenticated:` loop, the main thread was *also* calling `client_socket.recv(1024)`. Since both threads were listening to the exact same stream, they were stealing chunks of messages from each other randomly. 
 *Fix: Deleted the redundant `recv()` inside the `while authenticated:` loop, letting the background thread handle all incoming chat data seamlessly.*
+
+# 6th March: 
+
+Copied over the working tcp_client.py from Saiyantha's repo to my local machine. I left my server code as is, apart from the fact that I must accomodate for the changes that she made, I'll leave the sign in stuffs commented out, but I'll reopen the menu items code and server side for whatever things don't work I'll send a comment to the client "Coming soon" and exit back to the menu.
+
+
+My plan is to: 
+- Check for Auth: If the received message body starts with Authenticate/ or NewUser/, send a packet back with the body SUCCESS.
+
+- Handle Menu Commands: * If the message is 1, 2, 3, or 4, respond with the string: "[Feature Name]: Coming soon! Returning to menu..."
+
+- Ensure the client doesn't get disconnected after this message so they can try another command.
+
+- Default Echo: If the message is anything else, respond with Server received: [message].
+
+- Formatting: All outgoing messages must be passed through encode_packet to ensure the trailing newline is added, as the client's receive_messages thread expects this framing.
+
+## temp database: 
+
+To keep your database simple, "layered," and ready for future migration, you should avoid a single "dump" file. Instead, use three separate text files in your database/ folder. This mimics the Level 1/2/3 structure you planned without requiring a full database engine.
+
+Here is the simple, layered file structure for your database/ folder:
+
+1. auth.txt (Level 1: Authentication)
+Format: username:password_hash
+
+Purpose: Minimal read/write. When Authenticate/ hits the server, it only scans this small file.
+
+Why it's good: It keeps security data isolated. Even if chat history grows to gigabytes, the login process remains fast.
+
+2. users.csv (Level 2: Metadata)
+Format: username,user_id,chat_ids_list
+
+Example: maryam,101,chat_501|chat_502|chat_503
+
+Purpose: Maps users to their specific chat rooms.
+
+Why it's good: Decouples user information from the actual messages. You can easily upgrade this to a SQL table later.
+
+3. chat_{chat_id}.txt (Level 3: Message History)
+Format: timestamp,sender,message_body
+
+Example: 1741258800,maryam,Hello everyone!
+
+Purpose: Per-chat storage.
+
+Why it's good: This is the "per-chat queue" approach. When the server needs to write a message, it only opens the file for that specific chat_id.

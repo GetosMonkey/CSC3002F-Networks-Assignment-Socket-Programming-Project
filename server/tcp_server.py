@@ -4,6 +4,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from socket import *
 import threading
 from protocol import receive_packet, encode_packet  # type: ignore
+from client_handler import handle_client
 
 SERVER_PORT = 12005
 SERVER_HOST = ''
@@ -15,7 +16,7 @@ def start_server():
     server_socket.bind((SERVER_HOST, SERVER_PORT))
     server_socket.listen(5)
 
-    print("TCP Server is ready to receive connections...")
+    print(f"TCP Server is ready to receive connections on port {SERVER_PORT}...")
 
     while True:
         connection_socket, addr = server_socket.accept()
