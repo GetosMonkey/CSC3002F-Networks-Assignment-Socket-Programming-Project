@@ -241,3 +241,110 @@ Our `protocol.py` automatically injects a trailing newline (`\n`) onto the end o
 **3. The Threading Race Condition (The Silent Killer)**
 `tcp_client.py` spun up a background thread `receive_messages` to constantly listen to the socket and print server responses. However, further down in the `while authenticated:` loop, the main thread was *also* calling `client_socket.recv(1024)`. Since both threads were listening to the exact same stream, they were stealing chunks of messages from each other randomly. 
 *Fix: Deleted the redundant `recv()` inside the `while authenticated:` loop, letting the background thread handle all incoming chat data seamlessly.*
+
+# 6th March: 
+
+Copied over the working tcp_client.py from Saiyantha's repo to my local machine. I left my server code as is, apart from the fact that I must accomodate for the changes that she made, I'll leave the sign in stuffs commented out, but I'll reopen the menu items code and server side for whatever things don't work I'll send a comment to the client "Coming soon" and exit back to the menu.
+
+
+My plan is to: 
+- Check for Auth: If the received message body starts with Authenticate/ or NewUser/, send a packet back with the body SUCCESS.
+
+- Handle Menu Commands: * If the message is 1, 2, 3, or 4, respond with the string: "[Feature Name]: Coming soon! Returning to menu..."
+
+- Ensure the client doesn't get disconnected after this message so they can try another command.
+
+- Default Echo: If the message is anything else, respond with Server received: [message].
+
+- Formatting: All outgoing messages must be passed through encode_packet to ensure the trailing newline is added, as the client's receive_messages thread expects this framing.
+
+## temp database: 
+
+To keep your database simple, "layered," and ready for future migration, you should avoid a single "dump" file. Instead, use three separate text files in your database/ folder. This mimics the Level 1/2/3 structure you planned without requiring a full database engine.
+
+Here is the simple, layered file structure for your database/ folder:
+
+1. auth.txt (Level 1: Authentication)
+Format: username:password_hash
+
+Purpose: Minimal read/write. When Authenticate/ hits the server, it only scans this small file.
+
+Why it's good: It keeps security data isolated. Even if chat history grows to gigabytes, the login process remains fast.
+
+2. users.csv (Level 2: Metadata)
+Format: username,user_id,chat_ids_list
+
+Example: maryam,101,chat_501|chat_502|chat_503
+
+Purpose: Maps users to their specific chat rooms.
+
+Why it's good: Decouples user information from the actual messages. You can easily upgrade this to a SQL table later.
+
+3. chat_{chat_id}.txt (Level 3: Message History)
+Format: timestamp,sender,message_body
+
+Example: 1741258800,maryam,Hello everyone!
+
+Purpose: Per-chat storage.
+
+Why it's good: This is the "per-chat queue" approach. When the server needs to write a message, it only opens the file for that specific chat_id.
+
+## minimal client changes: 
+Move Definitions to Top (Required): Move the block of def statements above the line choice = show_menu().
+Fix Sequential Logic: Keep your current structure where you 
+
+login()
+/
+
+sign_up()
+ first, and then start the threads. This naturally prevents conflicts because the background thread isn't running yet while you are logging in.
+Correct the 
+
+sign_up
+ Bug: Your current 
+
+sign_up
+ function (line 89) uses input() to build the protocol string instead of just assigning it, which will cause a random prompt to appear.
+
+ # final additions
+
+ Currently, the server is only logging the raw receipt of data.
+
+What you see: [('127.0.0.1', 53950)] Received: NewUser/Mary/password123
+What's missing: The server doesn't have "active logging" for its internal logic. It doesn't explicitly print [DATABASE] User 'Mary' was written to auth.txt or [AUTH] Mary login successful.
+The Fix: We would need to add print() statements inside the if/elif blocks in 
+
+client_handler.py
+ to make the server "talkative" about what it's doing behind the scenes.
+2. Why no "back" option?
+The client is currently designed as a Linear State Machine.
+
+Step 1: It stays in the "Menu Loop" until authenticated becomes True.
+Step 2: Once authenticated, it enters the "Command Loop" (where you type /pm ...).
+The Problem: There is no code that allows you to "break" the Command Loop and return to the Menu Loop.
+The Fix: We would need to add a reserved keyword (like logout) that sets authenticated = False and breaks the inner loop, naturally fallling back into the menu loop.
+3. Why no chat history or routing?
+This is the biggest gap in the current prototype. Right now, the server is acting as a Simple Echo Server.
+
+Message Routing: When you Send /pm <Mary> <Hello>, the server receives it, but it doesn't know what to do with it. It doesn't maintain a "Lookup Table" (a dictionary) of which socket belongs to Mary, so it can't forward the message.
+Database Writing: Although we have an 
+
+append_message
+ function in 
+
+database.py
+, the 
+
+client_handler.py
+ isn't calling it yet. It’s just echoing Server received: [your message] back to the person who sent it.
+The Fix: For "Level 2/3" of your project, we will need to:
+Have the server store a mapping of {username: socket_connection}.
+Parse the /pm <user> part of your message.
+Look up that <user> in the map and send() the message to their socket.
+Call 
+
+append_message(chat_id, sender, body)
+ to save it to the 
+
+.txt
+ files.
