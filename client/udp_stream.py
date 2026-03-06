@@ -3,7 +3,7 @@ from socket import *
 SERVER_HOST = "localhost"
 SERVER_PORT = 12001
 
-
+# Creates connectionless UDP socket for our future client-client comms
 def send_udp_message():
     client_socket = socket(AF_INET, SOCK_DGRAM)
 

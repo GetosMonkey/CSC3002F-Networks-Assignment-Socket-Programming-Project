@@ -1,8 +1,8 @@
 from protocol import receive_packet, encode_packet  # type: ignore
 from database.database import check_auth, register_user, append_message  # Added append_message
 
+# right now sends a message to all clients except the sender (will change with db restrictions & auth in future)
 def broadcast(message, sender_socket, clients):
-    """Sends a message to all clients except the sender."""
     for client in clients:
         if client != sender_socket:
             try:
@@ -11,12 +11,8 @@ def broadcast(message, sender_socket, clients):
                 if client in clients:
                     clients.remove(client)
 
+# Handles all client-server implementation acting as the logic behind all the buttons and actions of the frontend
 def handle_client(connection_socket, addr, clients):
-    """
-    Handles a single client connection.
-    - Integrates with database for Auth/NewUser commands.
-    - Manages global broadcast for authenticated users.
-    """
     current_user = None
     
     try:
@@ -29,7 +25,7 @@ def handle_client(connection_socket, addr, clients):
 
                 print(f"[{addr}] Received: {body}")
 
-                # 1. Handle Authentication (Authenticate/username/password)
+                # 1. Authentication/Login
                 if body.startswith("Authenticate/"):
                     parts = body.split("/")
                     if len(parts) == 3:
@@ -46,7 +42,7 @@ def handle_client(connection_socket, addr, clients):
                     else:
                         response_body = "INVALID_AUTH_FORMAT"
 
-                # 2. Handle New User Registration (NewUser/username/password)
+                # 2. user registration/Signup
                 elif body.startswith("NewUser/"):
                     parts = body.split("/")
                     if len(parts) == 3:
@@ -60,7 +56,7 @@ def handle_client(connection_socket, addr, clients):
                     else:
                         response_body = "INVALID_SIGNUP_FORMAT"
                 
-                # 3. Handle Menu options (1, 2, 3, 4)
+                # 3. Menu Options
                 elif body in ["1", "2", "3", "4"]:
                     feature_map = {
                         "1": "Private Message",
@@ -72,14 +68,12 @@ def handle_client(connection_socket, addr, clients):
                     print(f"[FEATURE] Mapping command '{body}' to: {feature_name}")
                     response_body = f"{feature_name}: Feature coming soon!"
                 
-                # 4. Global Broadcast (Default)
+                # 4. Broadcasting
                 else:
                     if current_user:
-                        # Prepend username for identity-awareness
                         broadcast_msg = f"{current_user}: {body}"
                         
                         # Broadcast to everyone else
-                        # Note: encode_packet adds the necessary newline
                         packet = encode_packet(sequence_number, "DATA", broadcast_msg)
                         broadcast(packet, connection_socket, clients)
                         

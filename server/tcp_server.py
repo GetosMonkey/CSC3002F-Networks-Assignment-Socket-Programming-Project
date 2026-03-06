@@ -3,7 +3,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from socket import *
 import threading
-from protocol import receive_packet, encode_packet  # type: ignore
+from protocol import receive_packet, encode_packet
 from client_handler import handle_client
 
 SERVER_PORT = 12001
@@ -11,9 +11,10 @@ SERVER_HOST = ''
 
 active_clients = [] # Shared list for broadcasting
 
+# Creates/starts a multithreaded TCP server connected to por 12001 that loops infinitely to accept new ConnectionResetError
+# For every new client a new thread is made/opened
 def start_server():
     server_socket = socket(AF_INET, SOCK_STREAM)
-    # This line tells the OS to allow us to reuse the port immediately if it's lingering
     server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     server_socket.bind((SERVER_HOST, SERVER_PORT))
     server_socket.listen(5)

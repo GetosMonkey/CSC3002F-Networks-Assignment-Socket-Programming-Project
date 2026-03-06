@@ -4,14 +4,11 @@ import threading
 SERVER_HOST = "localhost"
 SERVER_PORT = 12001
 
-#________________________________________
-# Function definitions
-#________________________________________
-
 def authenticate(username, password, client_socket):
     message_string = "Authenticate/" + username + "/" + password
     client_socket.send(message_string.encode())
 
+# Checks to see if the user is authenticated
 def login(client_socket):
     username = input("Enter username: ")
     password = input("Enter password:  ")
@@ -23,6 +20,7 @@ def login(client_socket):
         print(f"Login failed! (Server said: {response})")
         return False
 
+# Captures the new user's details and sends it to the server for a SUCCESS-ful account creation
 def sign_up(client_socket):
     username = input("Enter a new username: ")
     password = input("Enter a new password: ")
@@ -36,6 +34,7 @@ def sign_up(client_socket):
         print(f"Sign-up failed: {response}")
         return False
 
+#Prompts the user to login or sign-up, with options of logging in for existing users or a sign-up for new users
 def show_menu():
     print("\n-- Welcome to WhatsUp --")
     print("1. Login")
@@ -44,6 +43,7 @@ def show_menu():
     reply = input("Select an option by number or q to quit: ")
     return reply
 
+# Gives user the outline for the expected format of a valid input string depending on what type of operation they want to execute
 def show_commands():
     print("\n-- Command Pallete --")
     print("Follow the syntax for each command to execute automatically:")
@@ -54,15 +54,15 @@ def show_commands():
     print("Type 'logout' to return to menu.")
     print("Type 'quit' to exit.")
 
+# Continuously listens for messages from the server and prints them to the terminal
 def receive_messages(client_socket, stop_event):
     while not stop_event.is_set():
         try:
-            client_socket.settimeout(1.0) # Check stop_event every second
+            client_socket.settimeout(1.0) 
             try:
                 message = client_socket.recv(1024).decode().strip()
                 if not message:
                     break
-                # Print on a new line to avoid interfering with current input prompt
                 print(f"\n{message}")
             except timeout:
                 continue
@@ -70,10 +70,7 @@ def receive_messages(client_socket, stop_event):
             print("\nDisconnected from server.")
             break
 
-#________________________________________
-# Main Program
-#________________________________________
-
+# Starts the client and handles the orchestration of our frontend, equivalent to a main class
 def start_client():
     client_socket = socket(AF_INET, SOCK_STREAM)
     try:
@@ -85,11 +82,10 @@ def start_client():
 
     stop_listener = threading.Event()
 
-    while True: # Session reset loop
+    while True: 
         authenticated = False
         
-        # Phase 1: Authentication (Blocking)
-        while not authenticated:
+        while not authenticated: # Looping on the login menu until a user is successully authenticated
             choice = show_menu()
             if choice == "1":
                 authenticated = login(client_socket)
@@ -101,7 +97,6 @@ def start_client():
             else:
                 print("Invalid Input!")
 
-        # Phase 2: Start Background Thread (Only after authenticated)
         stop_listener.clear()
         listener_thread = threading.Thread(target=receive_messages, args=(client_socket, stop_listener))
         listener_thread.daemon = True # Ensure thread closes when main program exits
@@ -110,7 +105,6 @@ def start_client():
         print("\nAuthenticated successfully!")
         show_commands()
 
-        # Phase 3: Command Loop (Main Thread)
         while True:
             message = input("> ")
             if message.lower() == "quit":
@@ -121,10 +115,9 @@ def start_client():
                 print("Logging out...")
                 stop_listener.set() # Stop the background thread
                 listener_thread.join() # Wait for it to exit
-                client_socket.settimeout(None) # Reset blocking mode
-                break # Return to authentication menu
+                client_socket.settimeout(None)
+                break # Return to login menu
             
-            # In a real app, you might want to prepend the username or handle protocol formatting
             client_socket.send(message.encode())
 
 if __name__ == "__main__":
