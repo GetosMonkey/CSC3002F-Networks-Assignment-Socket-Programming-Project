@@ -37,15 +37,16 @@ def sign_up(client_socket):
         return False
 
 def show_menu():
-    print("\n--- Welcome to ChatApp ---")
+    print("\n-- Welcome to WhatsUp --")
     print("1. Login")
     print("2. Sign-up")
     print("q. Quit")
-    reply = input("Select option: ")
+    reply = input("Select an option by number or q to quit: ")
     return reply
 
 def show_commands():
-    print("\n--- Available Commands ---")
+    print("\n-- Command Pallete --")
+    print("Follow the syntax for each command to execute automatically:")
     print("1. Private Message (Syntax: /pm <user> <message>)")
     print("2. Message Group (Syntax: /group <group_id> <message>)")
     print("3. Create New Group (Syntax: /create <group_name>)")
