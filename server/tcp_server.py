@@ -9,6 +9,8 @@ from client_handler import handle_client
 SERVER_PORT = 12001
 SERVER_HOST = ''
 
+active_clients = [] # Shared list for broadcasting
+
 def start_server():
     server_socket = socket(AF_INET, SOCK_STREAM)
     # This line tells the OS to allow us to reuse the port immediately if it's lingering
@@ -24,7 +26,7 @@ def start_server():
 
         threading.Thread(
             target=handle_client,
-            args=(connection_socket, addr)
+            args=(connection_socket, addr, active_clients) # Pass the list
         ).start()
 
 
