@@ -25,8 +25,10 @@ def handle_client(connection_socket, addr):
                 if len(parts) == 3:
                     _, username, password = parts
                     if check_auth(username, password):
+                        print(f"[AUTH] Login successful for user: '{username}'")
                         response_body = "SUCCESS"
                     else:
+                        print(f"[AUTH] Login failed for user: '{username}'")
                         response_body = "FAILURE"
                 else:
                     response_body = "INVALID_AUTH_FORMAT"
@@ -38,6 +40,7 @@ def handle_client(connection_socket, addr):
                     _, username, password = parts
                     # We could check if user exists, but register_user currently just appends
                     register_user(username, password)
+                    print(f"[DATABASE] User '{username}' was written to auth.txt")
                     response_body = "SUCCESS"
                 else:
                     response_body = "INVALID_SIGNUP_FORMAT"
@@ -51,6 +54,7 @@ def handle_client(connection_socket, addr):
                     "4": "Join Group"
                 }
                 feature_name = feature_map.get(body, "Unknown Feature")
+                print(f"[FEATURE] Mapping command '{body}' to: {feature_name}")
                 response_body = f"{feature_name}: Feature coming soon!"
             
             # 4. Default Echo
