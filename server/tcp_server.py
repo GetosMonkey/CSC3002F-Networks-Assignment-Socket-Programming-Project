@@ -36,7 +36,11 @@ def handle_client(connection_socket, addr):
 
             print(f"[{addr}] Received: {body}")
 
-            response_body = f"Server received: {body}"
+            if body.startswith("NewUser/") or body.startswith("Authenticate/"):
+                response_body = "SUCCESS"
+            else:
+                response_body = f"Server received: {body}"
+                
             response_packet = encode_packet(sequence_number, "ACK", response_body)
             connection_socket.sendall(response_packet)
 
