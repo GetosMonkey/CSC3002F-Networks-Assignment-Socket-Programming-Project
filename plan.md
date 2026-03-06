@@ -348,4 +348,3 @@ append_message(chat_id, sender, body)
 
 .txt
  files.
-Summary: Your prototype has the "doors" and "locks" working (Login/Signup), but the "delivery system" (Routing/History) hasn't been built yet! Would you like to start implementing the Message Routing or the Server Logs next?

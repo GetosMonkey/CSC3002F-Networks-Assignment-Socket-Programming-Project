@@ -50,16 +50,21 @@ def show_commands():
     print("2. Message Group (Syntax: /group <group_id> <message>)")
     print("3. Create New Group (Syntax: /create <group_name>)")
     print("4. Join Group (Syntax: /join <group_id>)")
+    print("Type 'logout' to return to menu.")
     print("Type 'quit' to exit.")
 
-def receive_messages(client_socket):
-    while True:
+def receive_messages(client_socket, stop_event):
+    while not stop_event.is_set():
         try:
-            message = client_socket.recv(1024).decode()
-            if not message:
-                break
-            # Print on a new line to avoid interfering with current input prompt
-            print(f"\n{message}")
+            client_socket.settimeout(1.0) # Check stop_event every second
+            try:
+                message = client_socket.recv(1024).decode().strip()
+                if not message:
+                    break
+                # Print on a new line to avoid interfering with current input prompt
+                print(f"\n{message}")
+            except timeout:
+                continue
         except:
             print("\nDisconnected from server.")
             break
@@ -77,40 +82,49 @@ def start_client():
         print(f"Could not connect to server: {e}")
         return
 
-    authenticated = False
-    name = ""
+    stop_listener = threading.Event()
 
-    # Phase 1: Authentication (Blocking)
-    while not authenticated:
-        choice = show_menu()
-        if choice == "1":
-            authenticated = login(client_socket)
-        elif choice == "2":
-            authenticated = sign_up(client_socket)
-        elif choice.lower() == "q":
-            client_socket.close()
-            return
-        else:
-            print("Invalid Input!")
-
-    # Phase 2: Start Background Thread (Only after authenticated)
-    listener_thread = threading.Thread(target=receive_messages, args=(client_socket,))
-    listener_thread.daemon = True # Ensure thread closes when main program exits
-    listener_thread.start()
-
-    print("\nAuthenticated successfully!")
-    show_commands()
-
-    # Phase 3: Command Loop (Main Thread)
-    while True:
-        message = input("> ")
-        if message.lower() == "quit":
-            client_socket.close()
-            break
+    while True: # Session reset loop
+        authenticated = False
         
-        # In a real app, you might want to prepend the username or handle protocol formatting
-        client_socket.send(message.encode())
+        # Phase 1: Authentication (Blocking)
+        while not authenticated:
+            choice = show_menu()
+            if choice == "1":
+                authenticated = login(client_socket)
+            elif choice == "2":
+                authenticated = sign_up(client_socket)
+            elif choice.lower() == "q":
+                client_socket.close()
+                return
+            else:
+                print("Invalid Input!")
+
+        # Phase 2: Start Background Thread (Only after authenticated)
+        stop_listener.clear()
+        listener_thread = threading.Thread(target=receive_messages, args=(client_socket, stop_listener))
+        listener_thread.daemon = True # Ensure thread closes when main program exits
+        listener_thread.start()
+
+        print("\nAuthenticated successfully!")
+        show_commands()
+
+        # Phase 3: Command Loop (Main Thread)
+        while True:
+            message = input("> ")
+            if message.lower() == "quit":
+                client_socket.close()
+                return
+            
+            if message.lower() == "logout":
+                print("Logging out...")
+                stop_listener.set() # Stop the background thread
+                listener_thread.join() # Wait for it to exit
+                client_socket.settimeout(None) # Reset blocking mode
+                break # Return to authentication menu
+            
+            # In a real app, you might want to prepend the username or handle protocol formatting
+            client_socket.send(message.encode())
 
 if __name__ == "__main__":
     start_client()
-
