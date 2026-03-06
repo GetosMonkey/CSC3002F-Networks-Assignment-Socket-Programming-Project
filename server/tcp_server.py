@@ -5,11 +5,13 @@ from socket import *
 import threading
 from protocol import receive_packet, encode_packet  # type: ignore
 
-SERVER_PORT = 12000
+SERVER_PORT = 12005
 SERVER_HOST = ''
 
 def start_server():
     server_socket = socket(AF_INET, SOCK_STREAM)
+    # This line tells the OS to allow us to reuse the port immediately if it's lingering
+    server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     server_socket.bind((SERVER_HOST, SERVER_PORT))
     server_socket.listen(5)
 

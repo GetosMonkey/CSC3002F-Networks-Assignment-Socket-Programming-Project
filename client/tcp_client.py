@@ -2,7 +2,7 @@ from socket import *
 import threading
 
 SERVER_HOST = "localhost"
-SERVER_PORT = 12000
+SERVER_PORT = 12005
 
 
 
