@@ -6,7 +6,7 @@ import threading
 from protocol import receive_packet, encode_packet  # type: ignore
 from client_handler import handle_client
 
-SERVER_PORT = 12005
+SERVER_PORT = 12001
 SERVER_HOST = ''
 
 def start_server():
@@ -27,27 +27,6 @@ def start_server():
             args=(connection_socket, addr)
         ).start()
 
-
-def handle_client(connection_socket, addr):
-    while True:
-        try:
-            sequence_number, message_type, body = receive_packet(connection_socket)
-            if sequence_number is None: # Connection closed
-                break
-
-            print(f"[{addr}] Received: {body}")
-
-            if body.startswith("NewUser/") or body.startswith("Authenticate/"):
-                response_body = "SUCCESS"
-            else:
-                response_body = f"Server received: {body}"
-                
-            response_packet = encode_packet(sequence_number, "ACK", response_body)
-            connection_socket.sendall(response_packet)
-
-        except Exception as e:
-            print(f"Error with {addr}: {e}")
-            break
 
     print(f"Connection closed: {addr}")
     connection_socket.close()

@@ -2,30 +2,55 @@ from socket import *
 import threading
 
 SERVER_HOST = "localhost"
-SERVER_PORT = 12000
-
-client_socket = socket(AF_INET, SOCK_STREAM)
-client_socket.connect((SERVER_HOST, SERVER_PORT))
-print("Connected to server.")
-name = input("Enter chat username: ")
-print("Type messages in chat!")
+SERVER_PORT = 12001
 
 #________________________________________
-
-choice = show_menu()
-
-authenticated = True
-
-if choice =="1":
-    authenticated = login(client_socket)
-elif choice =="2":
-    authenticated=sign_up(client_socket)
-else:
-    print("Invalid Input!")
-
-show_commands()
-
+# Function definitions
 #________________________________________
+
+def authenticate(username, password, client_socket):
+    message_string = "Authenticate/" + username + "/" + password
+    client_socket.send(message_string.encode())
+
+def login(client_socket):
+    username = input("Enter username: ")
+    password = input("Enter password:  ")
+    authenticate(username, password, client_socket)
+    response = client_socket.recv(1024).decode().strip()
+    if response == "SUCCESS":
+        return True
+    else:
+        print(f"Login failed! (Server said: {response})")
+        return False
+
+def sign_up(client_socket):
+    username = input("Enter a new username: ")
+    password = input("Enter a new password: ")
+    message_string = "NewUser" + "/" + username + "/" + password
+    client_socket.send(message_string.encode())
+    response = client_socket.recv(1024).decode().strip()
+    if response == "SUCCESS":
+        print("Sign-up successful!")
+        return True
+    else:
+        print(f"Sign-up failed: {response}")
+        return False
+
+def show_menu():
+    print("\n--- Welcome to ChatApp ---")
+    print("1. Login")
+    print("2. Sign-up")
+    print("q. Quit")
+    reply = input("Select option: ")
+    return reply
+
+def show_commands():
+    print("\n--- Available Commands ---")
+    print("1. Private Message (Syntax: /pm <user> <message>)")
+    print("2. Message Group (Syntax: /group <group_id> <message>)")
+    print("3. Create New Group (Syntax: /create <group_name>)")
+    print("4. Join Group (Syntax: /join <group_id>)")
+    print("Type 'quit' to exit.")
 
 def receive_messages(client_socket):
     while True:
@@ -33,65 +58,59 @@ def receive_messages(client_socket):
             message = client_socket.recv(1024).decode()
             if not message:
                 break
-            print(message)
-            
-   
+            # Print on a new line to avoid interfering with current input prompt
+            print(f"\n{message}")
         except:
-            print("An error occurred!")
-            client_socket.close()
+            print("\nDisconnected from server.")
             break
 
-def send_messages(client_socket):
+#________________________________________
+# Main Program
+#________________________________________
+
+def start_client():
+    client_socket = socket(AF_INET, SOCK_STREAM)
+    try:
+        client_socket.connect((SERVER_HOST, SERVER_PORT))
+        print(f"Connected to server at {SERVER_HOST}:{SERVER_PORT}")
+    except Exception as e:
+        print(f"Could not connect to server: {e}")
+        return
+
+    authenticated = False
+    name = ""
+
+    # Phase 1: Authentication (Blocking)
+    while not authenticated:
+        choice = show_menu()
+        if choice == "1":
+            authenticated = login(client_socket)
+        elif choice == "2":
+            authenticated = sign_up(client_socket)
+        elif choice.lower() == "q":
+            client_socket.close()
+            return
+        else:
+            print("Invalid Input!")
+
+    # Phase 2: Start Background Thread (Only after authenticated)
+    listener_thread = threading.Thread(target=receive_messages, args=(client_socket,))
+    listener_thread.daemon = True # Ensure thread closes when main program exits
+    listener_thread.start()
+
+    print("\nAuthenticated successfully!")
+    show_commands()
+
+    # Phase 3: Command Loop (Main Thread)
     while True:
-        message = input()
+        message = input("> ")
         if message.lower() == "quit":
             client_socket.close()
             break
-        message = name + ": " + message 
-        client_socket.send(message.encode())
         
-#________________________________________
+        # In a real app, you might want to prepend the username or handle protocol formatting
+        client_socket.send(message.encode())
 
-def authenticate(username,password, client_socket):
-    message_string="Authenticate/"+username+"/"+password
-    client_socket.send(message_string.encode())
-
-def login(client_socket):
-   username = input("Enter username: ")
-   password = input("Enter password:  ")
-   authenticate(username,password,client_socket)
-   response= client_socket.recv(1024).decode()
-   if response =="SUCCESS":
-      authenticated =True
-   else: authenticated =False
-
-   return authenticated
-
-def show_commands():
-   print("Select a command from the list below!") ## This method prompts the user to Login or sign-up
-   print("1. Private Message") ## Login for existing users
-   print("2. Message Group") ## sign-up for new users
-   print("3. Create New Group")
-   print("4. Join Group")
-
-
-def show_menu():
-   print("Welcome to ChatApp!") ## This method prompts the user to Login or sign-up
-   print("1. Login") ## Login for existing users
-   print("2. Sign-up") ## sign-up for new users
-   reply = input("Select option: ")
-   return reply
-
- 
-def sign_up(client_socket):
-    username=input("Enter a username: ")
-    password=input("Enter a password: ")
-    message_string=input("NewUser"+"/"+username+"/"+password)
-    client_socket.send(message_string.encode())
-    return True
-
-#________________________________________
-
-threading.Thread(target= receive_messages, args=(client_socket,)).start()
-threading.Thread(target= send_messages, args=(client_socket,)).start()
+if __name__ == "__main__":
+    start_client()
 
