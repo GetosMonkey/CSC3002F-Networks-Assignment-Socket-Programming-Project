@@ -205,3 +205,25 @@ packet_loss_sim.py
  snippet, you can start running tests with UDP packet loss and write up your findings in 
 experiments/notes.md
 .   
+
+# Conflicts and merge errors: 
+
+The Server [WinError 10048] error: You were getting "Only one usage of each socket address is normally permitted" because a previous run of the TCP server was still lingering in the background and holding port 12000 open. I found the hidden process causing the blockage using the terminal and killed it. 
+
+tcp_server.py
+ is now successfully running in the background again on your machine.
+
+The Client Syntax errors: Your friend's merge brought in a few syntax typos in 
+
+client/tcp_client.py
+ which I have corrected:
+
+1024.decode was trying to run the .decode() string method on the integer 1024 instead of the socket's output. I corrected this to recv(1024).decode().
+if response ="SUCCESS": was missing the second equals sign (==) required for comparison, which I added.
+else authenticated =False was missing a colon line break, which I added.
+
+sign_up
+ was trying to return a variable named valid that hadn't been defined, so I changed the response handler to return True or False instead.
+
+main()
+ was missing the call to actually start the client, which I uncommented.

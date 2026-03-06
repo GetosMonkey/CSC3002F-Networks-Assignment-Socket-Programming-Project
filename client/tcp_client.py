@@ -57,11 +57,11 @@ def login(client_socket):
     username = input("Enter username: ")
     password = input("Enter password:  ")
     authenticate(username,password,client_socket)
-    response= client_socket.recv(1024.decode)
-    if response ="SUCCESS":
-        authenticated =True
-    else authenticated =False
-
+    response = client_socket.recv(1024).decode()
+    if response == "SUCCESS":
+        authenticated = True
+    else:
+        authenticated = False
 
     return authenticated
 
@@ -83,14 +83,18 @@ def show_menu():
 
  
 def sign_up(client_socket):
-    username=input("Enter a username: ")
-    password=input("Enter a password: ")
-    message_string=input("NewUser"+"/"+username+"/"+password)
+    username = input("Enter a username: ")
+    password = input("Enter a password: ")
+    message_string = "NewUser" + "/" + username + "/" + password
     client_socket.send(message_string.encode())
-    return valid
+    
+    response = client_socket.recv(1024).decode()
+    if response == "SUCCESS":
+        return True
+    return False
 
 def main():
-    ##start_client()
+    start_client()
 
 
 
