@@ -1,12 +1,17 @@
+import sys, os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from socket import *
 import threading
+from protocol import receive_packet, encode_packet  # type: ignore
 
-SERVER_PORT = 12000
+SERVER_PORT = 12005
 SERVER_HOST = ''
-
 
 def start_server():
     server_socket = socket(AF_INET, SOCK_STREAM)
+    # This line tells the OS to allow us to reuse the port immediately if it's lingering
+    server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     server_socket.bind((SERVER_HOST, SERVER_PORT))
     server_socket.listen(5)
 
@@ -25,22 +30,22 @@ def start_server():
 def handle_client(connection_socket, addr):
     while True:
         try:
-            data = connection_socket.recv(1024)
-            if not data:
+            sequence_number, message_type, body = receive_packet(connection_socket)
+            if sequence_number is None: # Connection closed
                 break
 
-            message = data.decode()
-            print(f"[{addr}] {message}")
+            print(f"[{addr}] Received: {body}")
 
-            # Echo back for now
-            connection_socket.send(f"Server received: {message}".encode())
+            response_body = f"Server received: {body}"
+            response_packet = encode_packet(sequence_number, "ACK", response_body)
+            connection_socket.sendall(response_packet)
 
-        except:
+        except Exception as e:
+            print(f"Error with {addr}: {e}")
             break
 
     print(f"Connection closed: {addr}")
     connection_socket.close()
-
 
 if __name__ == "__main__":
     start_server()
