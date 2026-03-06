@@ -36,9 +36,6 @@ def start_client():
 
         client_socket.send(message.encode())
 
-        response = client_socket.recv(1024)
-        print("From Server:", response.decode())
-
     client_socket.close()
 
 def receive_messages(client_socket):
@@ -57,7 +54,7 @@ def login(client_socket):
     username = input("Enter username: ")
     password = input("Enter password:  ")
     authenticate(username,password,client_socket)
-    response = client_socket.recv(1024).decode()
+    response = client_socket.recv(1024).decode().strip()
     if response == "SUCCESS":
         authenticated = True
     else:
@@ -88,7 +85,7 @@ def sign_up(client_socket):
     message_string = "NewUser" + "/" + username + "/" + password
     client_socket.send(message_string.encode())
     
-    response = client_socket.recv(1024).decode()
+    response = client_socket.recv(1024).decode().strip()
     if response == "SUCCESS":
         return True
     return False

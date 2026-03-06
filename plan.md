@@ -227,3 +227,17 @@ sign_up
 
 main()
  was missing the call to actually start the client, which I uncommented.
+
+### 🧊 Why the Client Closed Immediately (and other Chat bugs)
+
+**1. The Logic Mismatch**
+The `login()` function in `tcp_client.py` waited for exactly `"SUCCESS"` from the server. However, the server was indiscriminately prefixing all responses with `"Server received: "`. As a result, the server responded with `"Server received: Authenticate/...` instead of `"SUCCESS"`. Since they didn't match, the client assumed authentication failed and quietly exited the program.
+*Fix: Updated `server/tcp_server.py` to check `if body.startswith("NewUser/") or body.startswith("Authenticate/"):` and return exactly `"SUCCESS"`.*
+
+**2. The Hidden Whitespace Bug**
+Our `protocol.py` automatically injects a trailing newline (`\n`) onto the end of outgoing server messages to guarantee transmission framing. `response = client_socket.recv(1024).decode()` captured this newline. `"SUCCESS\n" == "SUCCESS"` is False.
+*Fix: Appended `.strip()` to the `.decode()` calls for login and signup inside `client/tcp_client.py` to trim invisible whitespace.*
+
+**3. The Threading Race Condition (The Silent Killer)**
+`tcp_client.py` spun up a background thread `receive_messages` to constantly listen to the socket and print server responses. However, further down in the `while authenticated:` loop, the main thread was *also* calling `client_socket.recv(1024)`. Since both threads were listening to the exact same stream, they were stealing chunks of messages from each other randomly. 
+*Fix: Deleted the redundant `recv()` inside the `while authenticated:` loop, letting the background thread handle all incoming chat data seamlessly.*
