@@ -51,13 +51,16 @@ def check_auth(username, password):
     user = verify_login(username, password_hash)
     return user is not None
 
-def register_user(username, password, email=""):
+# In database/database.py
+def register_user(username, email, password):
+    # 1. Specific check for existing user to give better feedback
     existing_user = get_user_by_username(username)
     if existing_user is not None:
-        return False
+        return "EXISTS" # Specific return for the handler to use
+
     password_hash = hash_password(password)
     user_id = create_user(username, email, password_hash)
-    return user_id is not None
+    return "SUCCESS" if user_id else "FAILURE"
 
 # --- Chat Functions ---
 
