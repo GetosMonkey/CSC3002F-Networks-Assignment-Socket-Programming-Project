@@ -9,7 +9,8 @@ from client_handler import handle_client
 SERVER_PORT = 12001
 SERVER_HOST = ''
 
-active_clients = [] # Shared list for broadcasting
+#active_clients = [] # Shared list for broadcasting
+authenticated_clients = {}
 
 # Creates/starts a multithreaded TCP server connected to por 12001 that loops infinitely to accept new ConnectionResetError
 # For every new client a new thread is made/opened
@@ -27,7 +28,7 @@ def start_server():
 
         threading.Thread(
             target=handle_client,
-            args=(connection_socket, addr, active_clients) # Pass the list
+            args=(connection_socket, addr, authenticated_clients) # Pass the list
         ).start()
 
 
