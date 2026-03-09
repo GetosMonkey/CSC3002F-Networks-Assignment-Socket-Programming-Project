@@ -30,6 +30,9 @@ def sign_up(client_socket):
     if response == "SUCCESS":
         print("Sign-up successful!")
         return True
+    elif response == "USERNAME_EXISTS":
+        print("Username already exists! Please choose another.")
+        return False
     else:
         print(f"Sign-up failed: {response}")
         return False

@@ -47,14 +47,19 @@ def handle_client(connection_socket, addr, clients):
                     parts = body.split("/")
                     if len(parts) == 3:
                         _, username, password = parts
-                        if register_user(username, password):
+                        result = register_user(username, password)  # This returns "SUCCESS", "EXISTS", or "FAILURE"
+                        
+                        if result == "SUCCESS":
                             current_user = username
                             print(f"[DATABASE] User '{username}' successfully registered.")
                             response_body = "SUCCESS"
                             if connection_socket not in clients:
                                 clients.append(connection_socket)
+                        elif result == "EXISTS":
+                            print(f"[DATABASE] Registration failed: Username '{username}' already exists")
+                            response_body = "USERNAME_EXISTS"  # Send specific error to client
                         else:
-                            print(f"[DATABASE] Registration failed for user: '{username}' (User may already exist)")
+                            print(f"[DATABASE] Registration failed for user: '{username}'")
                             response_body = "FAILURE"
                     else:
                         response_body = "INVALID_SIGNUP_FORMAT"
