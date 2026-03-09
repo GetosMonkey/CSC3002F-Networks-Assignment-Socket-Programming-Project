@@ -6,17 +6,18 @@ from .db_connection import get_connection
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-def create_user(username, email, password_hash):
+def create_user(username, password_hash):
     conn = get_connection()
     cur = conn.cursor()
     try:
         cur.execute(
-            "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
-            (username, email, password_hash)
+            "INSERT INTO users (username, password_hash) VALUES (?, ?)",  # ← Fixed: removed email
+            (username, password_hash)
         )
         conn.commit()
         return cur.lastrowid
-    except Exception:
+    except Exception as e:
+        print(f"Error creating user: {e}")  # ← Add this for debugging
         return None
     finally:
         conn.close()
@@ -52,14 +53,14 @@ def check_auth(username, password):
     return user is not None
 
 # In database/database.py
-def register_user(username, email, password):
+def register_user(username, password):
     # 1. Specific check for existing user to give better feedback
     existing_user = get_user_by_username(username)
     if existing_user is not None:
         return "EXISTS" # Specific return for the handler to use
 
     password_hash = hash_password(password)
-    user_id = create_user(username, email, password_hash)
+    user_id = create_user(username, password_hash)
     return "SUCCESS" if user_id else "FAILURE"
 
 # --- Chat Functions ---
