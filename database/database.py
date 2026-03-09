@@ -51,7 +51,7 @@ def check_auth(username, password):
     user = verify_login(username, password_hash)
     return user is not None
 
-def register_user(username, email, password):
+def register_user(username, password, email=""):
     existing_user = get_user_by_username(username)
     if existing_user is not None:
         return False

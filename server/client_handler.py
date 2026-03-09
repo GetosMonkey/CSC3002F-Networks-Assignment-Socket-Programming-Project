@@ -47,12 +47,15 @@ def handle_client(connection_socket, addr, clients):
                     parts = body.split("/")
                     if len(parts) == 3:
                         _, username, password = parts
-                        register_user(username, password)
-                        current_user = username
-                        print(f"[DATABASE] User '{username}' was written to auth.txt")
-                        response_body = "SUCCESS"
-                        if connection_socket not in clients:
-                            clients.append(connection_socket)
+                        if register_user(username, password):
+                            current_user = username
+                            print(f"[DATABASE] User '{username}' successfully registered.")
+                            response_body = "SUCCESS"
+                            if connection_socket not in clients:
+                                clients.append(connection_socket)
+                        else:
+                            print(f"[DATABASE] Registration failed for user: '{username}' (User may already exist)")
+                            response_body = "FAILURE"
                     else:
                         response_body = "INVALID_SIGNUP_FORMAT"
                 
