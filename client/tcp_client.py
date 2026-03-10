@@ -8,16 +8,49 @@ def authenticate(username, password, client_socket):
     message_string = "Authenticate/" + username + "/" + password
     client_socket.send(message_string.encode())
 
+import json
+
+def display_history(data_json):
+    try:
+        data = json.loads(data_json)
+        print("\n--- Loading Chat History ---")
+        for chat in data.get("chats", []):
+            chat_name = f"Group {chat['chat_id']}"
+            if chat['chat_type'] == 'private':
+                members = chat.get('members', [])
+                other_user = next((m for m in members if m != data['user']['username']), "Unknown")
+                chat_name = f"PM with {other_user}"
+            elif chat['chat_id'] == 1:
+                chat_name = "Global Chat"
+            
+            print(f"\n[{chat_name}]")
+            for msg in chat.get("recent_messages", []):
+                # We need to find the sender's username. 
+                # The msg has sender_id, but the login data doesn't map all IDs to names.
+                # However, for now we can just show the content or rely on the server 
+                # including the username in the message content if it was saved that way.
+                # Actually, database logic saves content only.
+                # Let's assume for now we might need to improve this later, 
+                # but let's show what we have.
+                print(f"  {msg['content']}")
+        print("----------------------------\n")
+    except Exception as e:
+        print(f"Error displaying history: {e}")
+
 # Checks to see if the user is authenticated
 def login(client_socket):
     username = input("Enter username: ")
     password = input("Enter password:  ")
     authenticate(username, password, client_socket)
-    response = client_socket.recv(1024).decode().strip()
-    if response == "SUCCESS":
+    response = client_socket.recv(4096).decode().strip()
+    if response.startswith("SUCCESS"):
+        if "|" in response:
+            _, data_json = response.split("|", 1)
+            display_history(data_json)
         return True
     else:
-        print(f"Login failed! (Server said: {response})")
+        msg = response.split("|")[1] if "|" in response else response
+        print(f"Login failed! (Server said: {msg})")
         return False
 
 # Captures the new user's details and sends it to the server for a SUCCESS-ful account creation
@@ -26,12 +59,16 @@ def sign_up(client_socket):
     password = input("Enter a new password: ")
     message_string = "NewUser" + "/" + username + "/" + password
     client_socket.send(message_string.encode())
-    response = client_socket.recv(1024).decode().strip()
-    if response == "SUCCESS":
+    response = client_socket.recv(4096).decode().strip()
+    if response.startswith("SUCCESS"):
         print("Sign-up successful!")
+        if "|" in response:
+            _, data_json = response.split("|", 1)
+            display_history(data_json)
         return True
     else:
-        print(f"Sign-up failed: {response}")
+        msg = response.split("|")[1] if "|" in response else response
+        print(f"Sign-up failed: {msg}")
         return False
 
 #Prompts the user to login or sign-up, with options of logging in for existing users or a sign-up for new users
@@ -48,9 +85,10 @@ def show_commands():
     print("\n-- Command Pallete --")
     print("Follow the syntax for each command to execute automatically:")
     print("1. Private Message (Syntax: /pm <user> <message>)")
-    print("2. Message Group (Syntax: /group <group_id> <message>)")
+    print("2. Message Group (Syntax: /group <group_name> <message>)")
     print("3. Create New Group (Syntax: /create <group_name>)")
-    print("4. Join Group (Syntax: /join <group_id>)")
+    print("4. Join Group (Syntax: /join <group_name>)")
+    print("5. Broadcast (Syntax: /broadcast <message>)")
     print("Type 'logout' to return to menu.")
     print("Type 'quit' to exit.")
 

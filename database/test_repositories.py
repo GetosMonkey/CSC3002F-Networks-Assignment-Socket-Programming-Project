@@ -22,8 +22,8 @@ def main():
     password2 = hash_password("pass456")
 
     print("Creating users...")
-    user1_id = create_user(username1, f"{username1}@example.com", password1)
-    user2_id = create_user(username2, f"{username2}@example.com", password2)
+    user1_id = create_user(username1, password1)
+    user2_id = create_user(username2, password2)
 
     print("user1_id =", user1_id)
     print("user2_id =", user2_id)
