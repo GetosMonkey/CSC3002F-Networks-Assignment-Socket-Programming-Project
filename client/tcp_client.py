@@ -1,9 +1,14 @@
+from email.mime import message
 from socket import *
 import threading
 import os
 
+from udp_stream import UDPPeer
+
 SERVER_HOST = "localhost"
 SERVER_PORT = 12001
+
+udp_peer = UDPPeer()
 
 def authenticate(username, password, client_socket):
     message_string = "Authenticate/" + username + "/" + password
@@ -122,6 +127,8 @@ def start_client():
 
             if message.startswith("/file"):
                 fileshare(message)
+            else:
+                client_socket.send(message.encode())    
 
 def fileshare(message):
     parts= message.split(" ")
