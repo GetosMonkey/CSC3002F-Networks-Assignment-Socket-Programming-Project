@@ -51,9 +51,10 @@ def show_commands():
     print("\n-- Command Pallete --")
     print("Follow the syntax for each command to execute automatically:")
     print("1. Private Message (Syntax: /pm <user> <message>)")
-    print("2. Message Group (Syntax: /group <group_id> <message>)")
+    print("2. Message Group (Syntax: /group <group_name> <message>)")
     print("3. Create New Group (Syntax: /create <group_name>)")
-    print("4. Join Group (Syntax: /join <group_id>)")
+    print("4. Join Group (Syntax: /join <group_name>)")
+    print("5. Broadcast (Syntax: /broadcast <message>)")
     print("Type 'logout' to return to menu.")
     print("Type 'quit' to exit.")
 

@@ -63,16 +63,18 @@ def register_user(username, password):
 
 # --- Chat Functions ---
 
-def create_chat(chat_type):
+def create_chat(chat_type, name=None):
+    """Creates a new chat (private or group) and returns its ID."""
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("INSERT INTO chats (chat_type) VALUES (?)", (chat_type,))
-    conn.commit()
+    cur.execute("INSERT INTO chats (chat_type, name) VALUES (?, ?)", (chat_type, name))
     chat_id = cur.lastrowid
+    conn.commit()
     conn.close()
     return chat_id
 
 def add_user_to_chat(chat_id, user_id):
+    """Links a user to a specific chat."""
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -101,23 +103,41 @@ def get_chat_members(chat_id):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        SELECT u.* FROM users u
+        SELECT u.username FROM users u
         JOIN chat_members cm ON u.user_id = cm.user_id
         WHERE cm.chat_id = ?
-        ORDER BY u.user_id ASC
     """, (chat_id,))
     rows = cur.fetchall()
     conn.close()
     return rows
 
-def get_or_create_global_chat():
+def get_chat_by_id(chat_id):
+    """Fetches details of a specific chat."""
     conn = get_connection()
     cur = conn.cursor()
-    # We'll assume chat_id 1 is the Global chat
+    cur.execute("SELECT * FROM chats WHERE chat_id = ?", (chat_id,))
+    row = cur.fetchone()
+    conn.close()
+    return row
+
+def get_chat_by_name(name):
+    """Fetches details of a specific chat by its name."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM chats WHERE name = ? AND chat_type = 'group'", (name,))
+    row = cur.fetchone()
+    conn.close()
+    return row
+
+def get_or_create_global_chat():
+    """Simple helper for the global channel (Assuming ID 1 is Global)."""
+    conn = get_connection()
+    cur = conn.cursor()
     cur.execute("SELECT chat_id FROM chats WHERE chat_id = 1")
     row = cur.fetchone()
     if not row:
-        cur.execute("INSERT INTO chats (chat_id, chat_type) VALUES (1, 'group')")
+        # Initial creation of global chat if DB is empty
+        cur.execute("INSERT INTO chats (chat_id, chat_type, name) VALUES (1, 'group', 'Global')")
         conn.commit()
     conn.close()
     return 1
@@ -167,7 +187,7 @@ def append_message(chat_id, sender, message):
     if user is None:
         return False
     sender_id = user["user_id"]
-    if chat_id == "global":
+    if str(chat_id).lower() == "global":
         actual_chat_id = get_or_create_global_chat()
     else:
         actual_chat_id = int(chat_id)
@@ -176,52 +196,6 @@ def append_message(chat_id, sender, message):
     from server.message_queue import manager as queue_manager
     queue_manager.queue_message(actual_chat_id, sender_id, message)
     return True
-
-# Functions for side-stepping global broadcasting: (chat and member handling)
-
-def create_chat(chat_type):
-    """Creates a new chat (private or group) and returns its ID."""
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("INSERT INTO chats (chat_type) VALUES (?)", (chat_type,))
-    chat_id = cur.lastrowid
-    conn.commit()
-    conn.close()
-    return chat_id
-
-def add_user_to_chat(chat_id, user_id):
-    """Links a user to a specific chat."""
-    conn = get_connection()
-    cur = conn.cursor()
-    try:
-        cur.execute("INSERT INTO chat_members (chat_id, user_id) VALUES (?, ?)", (chat_id, user_id))
-        conn.commit()
-        return True
-    except:
-        return False
-    finally:
-        conn.close()
-
-def get_chat_members(chat_id):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT u.username FROM users u
-        JOIN chat_members cm ON u.user_id = cm.user_id
-        WHERE cm.chat_id = ?
-    """, (chat_id,))
-    rows = cur.fetchall()
-    conn.close()
-    return rows
-
-def get_chat_by_id(chat_id):
-    """Fetches details of a specific chat."""
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM chats WHERE chat_id = ?", (chat_id,))
-    row = cur.fetchone()
-    conn.close()
-    return row
 
 def get_or_create_private_chat(username1, username2):
     """Finds an existing DM between two users or creates one."""
@@ -251,20 +225,9 @@ def get_or_create_private_chat(username1, username2):
         add_user_to_chat(new_id, user2['user_id'])
         return new_id
 
-def get_or_create_global_chat():
-    """Simple helper for the global channel (Assuming ID 1 is Global)."""
-    # You could also check if a chat with a specific 'global' flag exists
-    chat = get_chat_by_id(1)
-    if not chat:
-        # Initial creation of global chat if DB is empty
-        return create_chat('group') 
-    return 1
-
 def get_all_groups():
     conn = get_connection()
     cur = conn.cursor()
-    # Assuming you eventually add a 'name' column to your chats table.
-    # If not, you might want to add one: ALTER TABLE chats ADD COLUMN name TEXT;
     cur.execute("SELECT chat_id, name FROM chats WHERE chat_type = 'group'")
     rows = cur.fetchall()
     conn.close()

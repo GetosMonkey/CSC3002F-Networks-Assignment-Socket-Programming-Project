@@ -47,15 +47,23 @@ def handle_client(connection_socket, addr, authenticated_clients):
                 else:
                     response_body = result # e.g., "USERNAME_EXISTS"
 
-            # 2. Command Parsing (The simpler way)
+            # 2. Command Parsing (The robust way)
             elif current_user:
                 if body.startswith("/"):
                     parts = body.split(" ", 2)
                     cmd = parts[0].lower()
 
-                    if cmd == "/pm" and len(parts) == 3:
-                        target_user = parts[1].strip("<> ")
-                        content = parts[2].strip("<> ")
+                    if cmd == "/pm" and len(parts) >= 2:
+                        # Improved PM parsing to handle possible <> or lack thereof
+                        cmd_line = body[len(cmd):].strip()
+                        if cmd_line.startswith("<"):
+                            target_user = cmd_line[1:cmd_line.find(">")].strip()
+                            content = cmd_line[cmd_line.find(">")+1:].strip()
+                        else:
+                            pm_parts = cmd_line.split(" ", 1)
+                            target_user = pm_parts[0]
+                            content = pm_parts[1] if len(pm_parts) > 1 else ""
+                        
                         chat_id = get_or_create_private_chat(current_user, target_user)
                         if chat_id:
                             append_message(chat_id, current_user, content)
@@ -65,45 +73,79 @@ def handle_client(connection_socket, addr, authenticated_clients):
                         else:
                             response_body = f"User {target_user} not found."
 
-                    elif cmd == "/group" and len(parts) == 3:
+                    elif cmd == "/group" and len(parts) >= 2:
+                        # Support /group <id_or_name> <message>
+                        cmd_line = body[len(cmd):].strip()
+                        group_target = ""
+                        content = ""
+                        
+                        if cmd_line.startswith("<"):
+                            group_target = cmd_line[1:cmd_line.find(">")].strip()
+                            content = cmd_line[cmd_line.find(">")+1:].strip()
+                        else:
+                            group_parts = cmd_line.split(" ", 1)
+                            group_target = group_parts[0]
+                            content = group_parts[1] if len(group_parts) > 1 else ""
+
+                        chat = None
                         try:
-                            gid = int(parts[1])
-                            content = parts[2]
+                            gid = int(group_target)
                             chat = get_chat_by_id(gid)
-                            if chat and chat["chat_type"] == "group":
-                                members = [dict(m)["username"] for m in get_chat_members(gid)]
-                                if current_user in members:
-                                    append_message(gid, current_user, content)
-                                    target_members = members
-                                    display_msg = f"[Group {gid} - {current_user}]: {content}"
-                                    response_body = f"Message sent to group {gid}."
-                                else:
-                                    response_body = "You are not a member of this group."
-                            else:
-                                response_body = f"Group {gid} does not exist."
                         except ValueError:
-                            response_body = "Invalid group ID."
+                            chat = get_chat_by_name(group_target)
+
+                        if chat and chat["chat_type"] == "group":
+                            gid = chat["chat_id"]
+                            members = [m["username"] for m in get_chat_members(gid)]
+                            if current_user in members:
+                                append_message(gid, current_user, content)
+                                target_members = members
+                                display_msg = f"[Group {chat['name'] or gid} - {current_user}]: {content}"
+                                response_body = f"Message sent to group {chat['name'] or gid}."
+                            else:
+                                response_body = "You are not a member of this group."
+                        else:
+                            response_body = f"Group '{group_target}' does not exist."
 
                     elif cmd == "/create" and len(parts) >= 2:
-                        chat_id = create_chat("group")
+                        group_name = body[len(cmd):].strip().strip("<> ")
+                        chat_id = create_chat("group", name=group_name)
                         user = get_user_by_username(current_user)
                         add_user_to_chat(chat_id, user["user_id"])
-                        response_body = f"Group created! ID: {chat_id}"
+                        response_body = f"Group '{group_name}' created successfully!"
 
-                    elif cmd == "/join" and len(parts) == 2:
+                    elif cmd == "/join" and len(parts) >= 2:
+                        group_target = body[len(cmd):].strip().strip("<> ")
+                        chat = None
                         try:
-                            gid = int(parts[1])
+                            # Still allow ID if they happen to know it, but logic should prefer name
+                            gid = int(group_target)
+                            chat = get_chat_by_id(gid)
+                        except ValueError:
+                            chat = get_chat_by_name(group_target)
+                        
+                        if chat:
                             user = get_user_by_username(current_user)
-                            add_user_to_chat(gid, user["user_id"])
-                            response_body = f"Joined group {gid}."
-                        except:
-                            response_body = "Could not join group."
+                            add_user_to_chat(chat["chat_id"], user["user_id"])
+                            name_display = chat['name'] if chat['name'] else f"ID {chat['chat_id']}"
+                            response_body = f"Joined group '{name_display}'."
+                        else:
+                            response_body = f"Group '{group_target}' not found."
+
+                    elif cmd == "/broadcast":
+                        content = body[len(cmd):].strip()
+                        target_members = list(authenticated_clients.values())
+                        display_msg = f"[BROADCAST from {current_user}]: {content}"
+                        response_body = "Broadcast sent to all online users."
+
+                    else:
+                        response_body = f"Unknown command: {cmd}"
 
                 else:
                     # Global Chat Logic
                     global_id = get_or_create_global_chat()
                     append_message(global_id, current_user, body)
-                    target_members = [dict(m)["username"] for m in get_chat_members(global_id)]
+                    target_members = [m["username"] for m in get_chat_members(global_id)]
                     display_msg = f"{current_user}: {body}"
                     response_body = "Message sent to global chat."
 
