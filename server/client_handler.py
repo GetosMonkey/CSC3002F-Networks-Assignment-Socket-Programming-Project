@@ -3,7 +3,8 @@ from database.database import (
     check_auth, register_user, append_message, 
     get_or_create_private_chat, get_chat_members, 
     get_chat_by_id, get_or_create_global_chat,
-    get_user_by_username, add_user_to_chat, create_chat
+    get_user_by_username, add_user_to_chat, create_chat,
+    get_chat_by_name
 )
 
 import json
@@ -85,7 +86,11 @@ def handle_client(connection_socket, addr, authenticated_clients):
                             target_user = pm_parts[0]
                             content = pm_parts[1] if len(pm_parts) > 1 else ""
                         
-                        chat_id = get_or_create_private_chat(current_user, target_user)
+                        if not target_user:
+                            response_body = "Usage: /pm <user> <message>"
+                            chat_id = None
+                        else:
+                            chat_id = get_or_create_private_chat(current_user, target_user)
                         if chat_id:
                             append_message(chat_id, current_user, content)
                             target_members = [target_user, current_user]
@@ -109,12 +114,15 @@ def handle_client(connection_socket, addr, authenticated_clients):
                             group_target = group_parts[0]
                             content = group_parts[1] if len(group_parts) > 1 else ""
 
-                        chat = None
-                        try:
-                            gid = int(group_target)
-                            chat = get_chat_by_id(gid)
-                        except ValueError:
-                            chat = get_chat_by_name(group_target)
+                        if not group_target:
+                            response_body = "Usage: /group <group_name> <message>"
+                        else:
+                            chat = None
+                            try:
+                                gid = int(group_target)
+                                chat = get_chat_by_id(gid)
+                            except ValueError:
+                                chat = get_chat_by_name(group_target)
 
                         if chat and chat["chat_type"] == "group":
                             gid = chat["chat_id"]
@@ -132,10 +140,13 @@ def handle_client(connection_socket, addr, authenticated_clients):
 
                     elif cmd == "/create" and len(parts) >= 2:
                         group_name = body[len(cmd):].strip().strip("<> ")
-                        chat_id = create_chat("group", name=group_name)
-                        user = get_user_by_username(current_user)
-                        add_user_to_chat(chat_id, user["user_id"])
-                        response_body = f"CONFIRM: Group '{group_name}' created successfully!"
+                        if group_name:
+                            chat_id = create_chat("group", name=group_name)
+                            user = get_user_by_username(current_user)
+                            add_user_to_chat(chat_id, user["user_id"])
+                            response_body = f"CONFIRM: Group '{group_name}' created successfully!"
+                        else:
+                            response_body = "Usage: /create <group_name>"
 
                     elif cmd == "/join" and len(parts) >= 2:
                         group_target = body[len(cmd):].strip().strip("<> ")
@@ -150,10 +161,12 @@ def handle_client(connection_socket, addr, authenticated_clients):
                         if chat:
                             user = get_user_by_username(current_user)
                             add_user_to_chat(chat["chat_id"], user["user_id"])
-                            name_display = chat['name'] if chat['name'] else f"ID {chat['chat_id']}"
+                            name_display = chat['name'] if chat.get('name') else f"ID {chat['chat_id']}"
                             response_body = f"CONFIRM: Joined group '{name_display}'."
-                        else:
+                        elif group_target:
                             response_body = f"Group '{group_target}' not found."
+                        else:
+                            response_body = "Usage: /join <group_name>"
 
                     elif cmd == "/broadcast":
                         content = body[len(cmd):].strip()

@@ -220,7 +220,8 @@ def get_or_create_private_chat(username1, username2):
         return row['chat_id']
     else:
         # Create new private chat
-        new_id = create_chat('private')
+        # Set name to target user's username as per request
+        new_id = create_chat('private', name=username2)
         add_user_to_chat(new_id, user1['user_id'])
         add_user_to_chat(new_id, user2['user_id'])
         return new_id

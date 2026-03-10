@@ -23,7 +23,7 @@ def reinitialize():
         conn.executescript(f.read())
     
     # 3. Seed Global Chat
-    conn.execute("INSERT INTO chats (chat_id, chat_type) VALUES (1, 'group')")
+    conn.execute("INSERT INTO chats (chat_id, chat_type, name) VALUES (1, 'group', 'Global')")
     conn.commit()
     conn.close()
     print("Database reinitialized successfully.")
