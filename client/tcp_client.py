@@ -13,8 +13,15 @@ import json
 def display_history(data_json):
     try:
         data = json.loads(data_json)
-        print("\n--- Loading Chat History ---")
-        for chat in data.get("chats", []):
+        print("\n" + "="*40)
+        print("       RECENT CHAT HISTORY")
+        print("="*40)
+        
+        chats = data.get("chats", [])
+        if not chats:
+            print("  No recent activity.")
+        
+        for chat in chats:
             chat_name = f"Group {chat['chat_id']}"
             if chat['chat_type'] == 'private':
                 members = chat.get('members', [])
@@ -23,17 +30,16 @@ def display_history(data_json):
             elif chat['chat_id'] == 1:
                 chat_name = "Global Chat"
             
-            print(f"\n[{chat_name}]")
-            for msg in chat.get("recent_messages", []):
-                # We need to find the sender's username. 
-                # The msg has sender_id, but the login data doesn't map all IDs to names.
-                # However, for now we can just show the content or rely on the server 
-                # including the username in the message content if it was saved that way.
-                # Actually, database logic saves content only.
-                # Let's assume for now we might need to improve this later, 
-                # but let's show what we have.
-                print(f"  {msg['content']}")
-        print("----------------------------\n")
+            print(f"\n>>> {chat_name} <<<")
+            msgs = chat.get("recent_messages", [])
+            if not msgs:
+                print("  (Empty)")
+            for msg in msgs:
+                # database saves messages with sender_id. 
+                # Since we don't have a full user mapping here, we show what we have.
+                # In the future, we could include sender_name in the message object.
+                print(f"  - {msg['content']}")
+        print("\n" + "="*40 + "\n")
     except Exception as e:
         print(f"Error displaying history: {e}")
 
@@ -101,7 +107,9 @@ def receive_messages(client_socket, stop_event):
                 message = client_socket.recv(1024).decode().strip()
                 if not message:
                     break
-                print(f"\n{message}")
+                # Only print newlines if it doesn't look like a direct confirmation
+                prefix = "\n" if not message.startswith("CONFIRM:") else ""
+                print(f"{prefix}<< {message}")
             except timeout:
                 continue
         except:

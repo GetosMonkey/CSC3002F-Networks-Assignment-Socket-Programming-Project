@@ -9,10 +9,12 @@ from database.database import (
 import json
 from db_handler import handle_login, handle_register
 
-def send_to_members(packet, member_usernames, sender_socket, authenticated_clients):
+def send_to_members(packet, member_usernames, sender_socket, authenticated_clients, include_sender=False):
     """Delivers packets only to specific users who are currently online."""
     for client_socket, username in authenticated_clients.items():
-        if username in member_usernames and client_socket != sender_socket:
+        if username in member_usernames:
+            if not include_sender and client_socket == sender_socket:
+                continue
             try:
                 client_socket.sendall(packet)
             except:
@@ -29,6 +31,7 @@ def handle_client(connection_socket, addr, authenticated_clients):
             target_members = []
             display_msg = ""
             response_body = ""
+            include_sender_in_broadcast = False
 
             # 1. Authentication & Registration
             if body.startswith("Authenticate/"):
@@ -86,8 +89,9 @@ def handle_client(connection_socket, addr, authenticated_clients):
                         if chat_id:
                             append_message(chat_id, current_user, content)
                             target_members = [target_user, current_user]
-                            display_msg = f"[PM from {current_user}]: {content}"
-                            response_body = f"Private message sent to {target_user}."
+                            display_msg = f"[PM with {target_user}]: {content}"
+                            response_body = "PM sent."
+                            include_sender_in_broadcast = True
                         else:
                             response_body = f"User {target_user} not found."
 
@@ -119,7 +123,8 @@ def handle_client(connection_socket, addr, authenticated_clients):
                                 append_message(gid, current_user, content)
                                 target_members = members
                                 display_msg = f"[Group {chat['name'] or gid} - {current_user}]: {content}"
-                                response_body = f"Message sent to group {chat['name'] or gid}."
+                                response_body = "Group message sent."
+                                include_sender_in_broadcast = True
                             else:
                                 response_body = "You are not a member of this group."
                         else:
@@ -130,7 +135,7 @@ def handle_client(connection_socket, addr, authenticated_clients):
                         chat_id = create_chat("group", name=group_name)
                         user = get_user_by_username(current_user)
                         add_user_to_chat(chat_id, user["user_id"])
-                        response_body = f"Group '{group_name}' created successfully!"
+                        response_body = f"CONFIRM: Group '{group_name}' created successfully!"
 
                     elif cmd == "/join" and len(parts) >= 2:
                         group_target = body[len(cmd):].strip().strip("<> ")
@@ -146,7 +151,7 @@ def handle_client(connection_socket, addr, authenticated_clients):
                             user = get_user_by_username(current_user)
                             add_user_to_chat(chat["chat_id"], user["user_id"])
                             name_display = chat['name'] if chat['name'] else f"ID {chat['chat_id']}"
-                            response_body = f"Joined group '{name_display}'."
+                            response_body = f"CONFIRM: Joined group '{name_display}'."
                         else:
                             response_body = f"Group '{group_target}' not found."
 
@@ -154,7 +159,8 @@ def handle_client(connection_socket, addr, authenticated_clients):
                         content = body[len(cmd):].strip()
                         target_members = list(authenticated_clients.values())
                         display_msg = f"[BROADCAST from {current_user}]: {content}"
-                        response_body = "Broadcast sent to all online users."
+                        response_body = "Broadcast sent."
+                        include_sender_in_broadcast = True
 
                     else:
                         response_body = f"Unknown command: {cmd}"
@@ -166,7 +172,8 @@ def handle_client(connection_socket, addr, authenticated_clients):
                     # For global chat, target all online users
                     target_members = list(authenticated_clients.values())
                     display_msg = f"{current_user}: {body}"
-                    response_body = "Message sent to global chat."
+                    response_body = "Global message sent."
+                    include_sender_in_broadcast = True
 
             else:
                 response_body = "Please login first."
@@ -174,10 +181,11 @@ def handle_client(connection_socket, addr, authenticated_clients):
             # 3. Final Transmission
             if display_msg and target_members:
                 packet = encode_packet(sequence_number, "DATA", display_msg)
-                send_to_members(packet, target_members, connection_socket, authenticated_clients)
+                send_to_members(packet, target_members, connection_socket, authenticated_clients, include_sender=include_sender_in_broadcast)
             
             # Send ACK back to sender
-            connection_socket.sendall(encode_packet(sequence_number, "ACK", response_body))
+            if response_body:
+                connection_socket.sendall(encode_packet(sequence_number, "ACK", response_body))
 
     finally:
         if connection_socket in authenticated_clients:
