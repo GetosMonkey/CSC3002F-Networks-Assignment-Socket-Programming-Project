@@ -1,5 +1,6 @@
 from socket import *
 import threading
+import os
 
 SERVER_HOST = "localhost"
 SERVER_PORT = 12001
@@ -49,8 +50,9 @@ def show_commands():
     print("Follow the syntax for each command to execute automatically:")
     print("1. Private Message (Syntax: /pm <user> <message>)")
     print("2. Message Group (Syntax: /group <group_id> <message>)")
-    print("3. Create New Group (Syntax: /create <group_name>)")
-    print("4. Join Group (Syntax: /join <group_id>)")
+    print("3. Send File (Syntax: /file <user> <filename> OR /file <group_name> <filename> )")
+    print("4. Create New Group (Syntax: /create <group_name>)")
+    print("5. Join Group (Syntax: /join <group_id>)")
     print("Type 'logout' to return to menu.")
     print("Type 'quit' to exit.")
 
@@ -117,8 +119,21 @@ def start_client():
                 listener_thread.join() # Wait for it to exit
                 client_socket.settimeout(None)
                 break # Return to login menu
-            
-            client_socket.send(message.encode())
+
+            if message.startswith("/file"):
+                fileshare(message)
+
+def fileshare(message):
+    parts= message.split(" ")
+    id = parts[1]
+    filename = parts[2]
+
+    
+
+
+
+
+
 
 if __name__ == "__main__":
     start_client()

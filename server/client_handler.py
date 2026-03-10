@@ -71,7 +71,7 @@ def handle_client(connection_socket, addr, clients):
                     print(f"[FEATURE] Mapping command '{body}' to: {feature_name}")
                     response_body = f"{feature_name}: Feature coming soon!"
                 
-                # 4. Broadcasting
+                # 5. Broadcasting
                 else:
                     if current_user:
                         broadcast_msg = f"{current_user}: {body}"
@@ -84,9 +84,17 @@ def handle_client(connection_socket, addr, clients):
                         append_message("global", current_user, body)
                         
                         response_body = f"Message broadcasted to chat."
-                    else:
+                      else:
                         response_body = "Please login first to chat."
-                    
+
+                
+                
+
+            
+
+         
+
+                                     
                 # 5. Send ACK to the sender
                 response_packet = encode_packet(sequence_number, "ACK", response_body)
                 connection_socket.sendall(response_packet)
