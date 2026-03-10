@@ -54,11 +54,12 @@ def handle_client(connection_socket, addr, authenticated_clients):
                     cmd = parts[0].lower()
 
                     if cmd == "/pm" and len(parts) == 3:
-                        target_user, content = parts[1], parts[2]
+                        target_user = parts[1].strip("<> ")
+                        content = parts[2].strip("<> ")
                         chat_id = get_or_create_private_chat(current_user, target_user)
                         if chat_id:
                             append_message(chat_id, current_user, content)
-                            target_members = [target_user]
+                            target_members = [target_user, current_user]
                             display_msg = f"[PM from {current_user}]: {content}"
                             response_body = f"Private message sent to {target_user}."
                         else:

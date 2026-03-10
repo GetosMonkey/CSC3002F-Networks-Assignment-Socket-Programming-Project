@@ -38,6 +38,9 @@ def verify_login(username, password_hash):
     conn.close()
     return row
 
+def check_auth(username, password_hash):
+    return verify_login(username, password_hash)
+
 def delete_user(user_id):
     conn = get_connection()
     cur = conn.cursor()
@@ -54,13 +57,8 @@ def check_auth(username, password):
 
 # In database/database.py
 def register_user(username, password):
-    # 1. Specific check for existing user to give better feedback
-    existing_user = get_user_by_username(username)
-    if existing_user is not None:
-        return "EXISTS" # Specific return for the handler to use
-
-    password_hash = hash_password(password)
-    user_id = create_user(username, password_hash)
+    pwd_hash = hash_password(password)
+    user_id = create_user(username, pwd_hash)
     return "SUCCESS" if user_id else "FAILURE"
 
 # --- Chat Functions ---
@@ -115,12 +113,14 @@ def get_chat_members(chat_id):
 def get_or_create_global_chat():
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT chat_id FROM chats WHERE chat_type = 'group' ORDER BY chat_id ASC LIMIT 1")
+    # We'll assume chat_id 1 is the Global chat
+    cur.execute("SELECT chat_id FROM chats WHERE chat_id = 1")
     row = cur.fetchone()
+    if not row:
+        cur.execute("INSERT INTO chats (chat_id, chat_type) VALUES (1, 'group')")
+        conn.commit()
     conn.close()
-    if row is not None:
-        return row["chat_id"]
-    return create_chat("group")
+    return 1
 
 # --- Message Functions ---
 
@@ -176,3 +176,96 @@ def append_message(chat_id, sender, message):
     from server.message_queue import manager as queue_manager
     queue_manager.queue_message(actual_chat_id, sender_id, message)
     return True
+
+# Functions for side-stepping global broadcasting: (chat and member handling)
+
+def create_chat(chat_type):
+    """Creates a new chat (private or group) and returns its ID."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("INSERT INTO chats (chat_type) VALUES (?)", (chat_type,))
+    chat_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return chat_id
+
+def add_user_to_chat(chat_id, user_id):
+    """Links a user to a specific chat."""
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("INSERT INTO chat_members (chat_id, user_id) VALUES (?, ?)", (chat_id, user_id))
+        conn.commit()
+        return True
+    except:
+        return False
+    finally:
+        conn.close()
+
+def get_chat_members(chat_id):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT u.username FROM users u
+        JOIN chat_members cm ON u.user_id = cm.user_id
+        WHERE cm.chat_id = ?
+    """, (chat_id,))
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+
+def get_chat_by_id(chat_id):
+    """Fetches details of a specific chat."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM chats WHERE chat_id = ?", (chat_id,))
+    row = cur.fetchone()
+    conn.close()
+    return row
+
+def get_or_create_private_chat(username1, username2):
+    """Finds an existing DM between two users or creates one."""
+    user1 = get_user_by_username(username1)
+    user2 = get_user_by_username(username2)
+    if not user1 or not user2: return None
+
+    conn = get_connection()
+    cur = conn.cursor()
+    # Check for existing private chat between these two
+    cur.execute("""
+        SELECT cm1.chat_id FROM chat_members cm1
+        JOIN chat_members cm2 ON cm1.chat_id = cm2.chat_id
+        JOIN chats c ON cm1.chat_id = c.chat_id
+        WHERE c.chat_type = 'private' AND cm1.user_id = ? AND cm2.user_id = ?
+    """, (user1['user_id'], user2['user_id']))
+    
+    row = cur.fetchone()
+    conn.close()
+
+    if row:
+        return row['chat_id']
+    else:
+        # Create new private chat
+        new_id = create_chat('private')
+        add_user_to_chat(new_id, user1['user_id'])
+        add_user_to_chat(new_id, user2['user_id'])
+        return new_id
+
+def get_or_create_global_chat():
+    """Simple helper for the global channel (Assuming ID 1 is Global)."""
+    # You could also check if a chat with a specific 'global' flag exists
+    chat = get_chat_by_id(1)
+    if not chat:
+        # Initial creation of global chat if DB is empty
+        return create_chat('group') 
+    return 1
+
+def get_all_groups():
+    conn = get_connection()
+    cur = conn.cursor()
+    # Assuming you eventually add a 'name' column to your chats table.
+    # If not, you might want to add one: ALTER TABLE chats ADD COLUMN name TEXT;
+    cur.execute("SELECT chat_id, name FROM chats WHERE chat_type = 'group'")
+    rows = cur.fetchall()
+    conn.close()
+    return rows

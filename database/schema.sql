@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS chats (
     chat_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
     chat_type TEXT NOT NULL CHECK(chat_type IN ('private', 'group')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
