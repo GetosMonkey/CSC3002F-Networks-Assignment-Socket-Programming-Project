@@ -75,13 +75,18 @@ def create_chat(chat_type, name=None):
 
 def add_user_to_chat(chat_id, user_id):
     """Links a user to a specific chat."""
+    import sqlite3
     conn = get_connection()
     cur = conn.cursor()
     try:
         cur.execute("INSERT INTO chat_members (chat_id, user_id) VALUES (?, ?)", (chat_id, user_id))
         conn.commit()
         return True
-    except Exception:
+    except sqlite3.IntegrityError:
+        # User is already a member, which is fine
+        return True
+    except Exception as e:
+        print(f"[DB ERROR] add_user_to_chat error: {e}")
         return False
     finally:
         conn.close()

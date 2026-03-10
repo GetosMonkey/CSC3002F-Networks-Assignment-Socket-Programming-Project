@@ -90,11 +90,11 @@ def show_menu():
 def show_commands():
     print("\n-- Command Pallete --")
     print("Follow the syntax for each command to execute automatically:")
-    print("1. Private Message (Syntax: /pm <user> <message>)")
-    print("2. Message Group (Syntax: /group <group_name> <message>)")
-    print("3. Create New Group (Syntax: /create <group_name>)")
-    print("4. Join Group (Syntax: /join <group_name>)")
-    print("5. Broadcast (Syntax: /broadcast <message>)")
+    print("1. Private Message (Syntax: /pm user message)")
+    print("2. Message Group (Syntax: /group group_name message)")
+    print("3. Create New Group (Syntax: /create group_name)")
+    print("4. Join Group (Syntax: /join group_name)")
+    print("5. Broadcast (Syntax: /broadcast message)")
     print("Type 'logout' to return to menu.")
     print("Type 'quit' to exit.")
 
@@ -163,6 +163,13 @@ def start_client():
                 listener_thread.join() # Wait for it to exit
                 client_socket.settimeout(None)
                 break # Return to login menu
+            
+            if message.startswith("/"):
+                # Proactively strip brackets to avoid server-side ambiguity, 
+                # but keep the command structure intact.
+                import re
+                # This regex finds <text> and replaces it with text
+                message = re.sub(r'<([^>]+)>', r'\1', message)
             
             client_socket.send(message.encode())
 
