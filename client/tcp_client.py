@@ -220,8 +220,8 @@ def send_file_to_user(id, filename):
         safe_filename = os.path.basename(filename)
 
         safe_filename = os.path.basename(filename)
-        header = f"FILE|{safe_filename}|{filesize}"
-        file_socket.send(header.encode())
+        header = f"FILE|{safe_filename}|{filesize}\n"
+        file_socket.sendall(header.encode())
 
         with open(filename, "rb") as f:
             while True:
@@ -276,22 +276,36 @@ def p2p_client():
 
 def handle_incoming_file(conn):
     try:
-        # First, receive the file header
-        header = conn.recv(1024).decode()
+        # Read until header newline
+        data = b""
+        while b"\n" not in data:
+            chunk = conn.recv(1024)
+            if not chunk:
+                print("Connection closed before header was received.")
+                return
+            data += chunk
+
+        header_bytes, remaining_data = data.split(b"\n", 1)
+        header = header_bytes.decode()
+
         if not header.startswith("FILE|"):
             print("Invalid file header")
-            conn.close()
             return
 
         # Header format: FILE|filename|filesize
-        _, filename, filesize = header.split("|")
+        _, filename, filesize = header.split("|", 2)
         filesize = int(filesize)
 
-        # Prepare a new file to save
         os.makedirs("received_files", exist_ok=True)
-        save_path = os.path.join("received_files", f"received_{filename}") 
+        save_path = os.path.join("received_files", f"received_{filename}")
+
         with open(save_path, "wb") as f:
-            remaining = filesize
+            # Write any file bytes that already arrived with the header
+            if remaining_data:
+                f.write(remaining_data)
+
+            remaining = filesize - len(remaining_data)
+
             while remaining > 0:
                 chunk = conn.recv(min(4096, remaining))
                 if not chunk:
@@ -303,6 +317,7 @@ def handle_incoming_file(conn):
 
     except Exception as e:
         print("Error receiving file:", e)
+
     finally:
         conn.close()
 
