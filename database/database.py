@@ -174,7 +174,7 @@ def update_user_port(username, port):
     cur = conn.cursor()
 
     cur.execute(
-        "UPDATE users SET port=? WHERE username=?",
+        "UPDATE users SET port_number=? WHERE username=?",
         (port, username)
     )
 
@@ -187,7 +187,7 @@ def get_user_port(username):
     cur = conn.cursor()
 
     cur.execute(
-        "SELECT port FROM users WHERE username=?",
+        "SELECT port_number FROM users WHERE username=?",
         (username,)
     )
 
@@ -198,13 +198,6 @@ def get_user_port(username):
         return row[0]
 
     return None
-
-
-
-
-def get_Port_Numbers(chat_id):
-
-
 
     # Local import to avoid circular dependency
     from server.message_queue import manager as queue_manager

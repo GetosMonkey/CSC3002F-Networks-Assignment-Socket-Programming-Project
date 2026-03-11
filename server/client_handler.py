@@ -84,7 +84,7 @@ def handle_client(connection_socket, addr, clients):
                         append_message("global", current_user, body)
                         
                         response_body = f"Message broadcasted to chat."
-                      else:
+                    else:
                         response_body = "Please login first to chat."
 
                 
