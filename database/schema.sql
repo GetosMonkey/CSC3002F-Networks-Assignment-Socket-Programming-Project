@@ -5,8 +5,8 @@ CREATE TABLE IF NOT EXISTS users (
     username TEXT NOT NULL UNIQUE,
     email TEXT UNIQUE,
     password_hash TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    port_number Integer
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    port_number INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS chats (
