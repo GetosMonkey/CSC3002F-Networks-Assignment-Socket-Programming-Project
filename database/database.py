@@ -6,13 +6,13 @@ from .db_connection import get_connection
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-def create_user(username, email, password_hash):
+def create_user(username, password_hash):
     conn = get_connection()
     cur = conn.cursor()
     try:
         cur.execute(
-            "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
-            (username, email, password_hash)
+            "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+            (username, password_hash)
         )
         conn.commit()
         return cur.lastrowid
@@ -51,12 +51,12 @@ def check_auth(username, password):
     user = verify_login(username, password_hash)
     return user is not None
 
-def register_user(username, password, email=""):
+def register_user(username, password):
     existing_user = get_user_by_username(username)
     if existing_user is not None:
         return False
     password_hash = hash_password(password)
-    user_id = create_user(username, email, password_hash)
+    user_id = create_user(username, password_hash)
     return user_id is not None
 
 # --- Chat Functions ---
@@ -103,7 +103,7 @@ def get_chat_by_name(name):
     conn.close()
     return row
 
-def get_chat_members(chat_id):
+def get_chat_members(chat_name):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
@@ -111,7 +111,7 @@ def get_chat_members(chat_id):
         JOIN chat_members cm ON u.user_id = cm.user_id
         WHERE cm.chat_id = ?
         ORDER BY u.user_id ASC
-    """, (chat_id,))
+    """, (chat_name,))
     rows = cur.fetchall()
     conn.close()
     return rows

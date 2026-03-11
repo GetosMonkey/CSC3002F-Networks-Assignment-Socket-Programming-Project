@@ -5,6 +5,7 @@ from socket import *
 import threading
 from protocol import receive_packet, encode_packet
 from client_handler import handle_client
+from database.db_connection import initialize_database
 
 SERVER_PORT = 12001
 SERVER_HOST = ''
@@ -31,8 +32,6 @@ def start_server():
         ).start()
 
 
-    print(f"Connection closed: {addr}")
-    connection_socket.close()
-
 if __name__ == "__main__":
+    initialize_database()
     start_server()
