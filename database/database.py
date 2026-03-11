@@ -11,7 +11,7 @@ def create_user(username, email, password_hash):
     cur = conn.cursor()
     try:
         cur.execute(
-            "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
+            "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?, ?)",
             (username, email, password_hash)
         )
         conn.commit()
@@ -167,7 +167,45 @@ def append_message(chat_id, sender, message):
         actual_chat_id = get_or_create_global_chat()
     else:
         actual_chat_id = int(chat_id)
-    
+
+
+def update_user_port(username, port):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "UPDATE users SET port=? WHERE username=?",
+        (port, username)
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def get_user_port(username):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT port FROM users WHERE username=?",
+        (username,)
+    )
+
+    row = cur.fetchone()
+    conn.close()
+
+    if row:
+        return row[0]
+
+    return None
+
+
+
+
+def get_Port_Numbers(chat_id):
+
+
+
     # Local import to avoid circular dependency
     from server.message_queue import manager as queue_manager
     queue_manager.queue_message(actual_chat_id, sender_id, message)
