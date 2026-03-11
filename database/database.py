@@ -11,7 +11,7 @@ def create_user(username, email, password_hash):
     cur = conn.cursor()
     try:
         cur.execute(
-            "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?, ?)",
+            "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
             (username, email, password_hash)
         )
         conn.commit()
@@ -61,10 +61,10 @@ def register_user(username, password, email=""):
 
 # --- Chat Functions ---
 
-def create_chat(chat_type):
+def create_chat(chat_type, name=None):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("INSERT INTO chats (chat_type) VALUES (?)", (chat_type,))
+    cur.execute("INSERT INTO chats (chat_type, name) VALUES (?)", (chat_type, name))
     conn.commit()
     chat_id = cur.lastrowid
     conn.close()
@@ -94,6 +94,14 @@ def get_user_chats(user_id):
     rows = cur.fetchall()
     conn.close()
     return rows
+
+def get_chat_by_name(name):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM chats WHERE name = ?", (name,))
+    row = cur.fetchone()
+    conn.close()
+    return row
 
 def get_chat_members(chat_id):
     conn = get_connection()
@@ -162,22 +170,26 @@ def append_message(chat_id, sender, message):
     user = get_user_by_username(sender)
     if user is None:
         return False
+    
     sender_id = user["user_id"]
+
     if chat_id == "global":
         actual_chat_id = get_or_create_global_chat()
     else:
         actual_chat_id = int(chat_id)
 
+    next_seq = get_last_sequence(actual_chat_id) + 1
+    save_message(actual_chat_id, sender_id, message, next_seq)
+    return True
+
 
 def update_user_port(username, port):
     conn = get_connection()
     cur = conn.cursor()
-
     cur.execute(
-        "UPDATE users SET port_number=? WHERE username=?",
+        "UPDATE users SET port_number = ? WHERE username = ?",
         (port, username)
     )
-
     conn.commit()
     conn.close()
 
@@ -185,19 +197,17 @@ def update_user_port(username, port):
 def get_user_port(username):
     conn = get_connection()
     cur = conn.cursor()
-
     cur.execute(
-        "SELECT port_number FROM users WHERE username=?",
+        "SELECT port_number FROM users WHERE username = ?",
         (username,)
     )
-
     row = cur.fetchone()
     conn.close()
 
-    if row:
-        return row[0]
+    if row is None:
+        return None
 
-    return None
+    return row["port_number"]
 
     # Local import to avoid circular dependency
     from server.message_queue import manager as queue_manager
