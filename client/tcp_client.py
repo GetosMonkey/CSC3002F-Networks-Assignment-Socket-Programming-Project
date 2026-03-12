@@ -15,6 +15,10 @@ file_server_socket = None
 file_server_running = False
 file_server_port = None
 
+UDP_PORT = 13000
+udp_client = socket(AF_INET, SOCK_DGRAM)
+udp_client.bind(("localhost", 0))
+
 def authenticate(username, password, client_socket):
     message_string = "Authenticate/" + username + "/" + password
     client_socket.send(message_string.encode())
@@ -30,6 +34,7 @@ def login(client_socket):
         global current_user
         current_user = username
         start_p2p_listener()
+        send_online(username)
         return True
     else:
         print(f"Login failed! (Server said: {response})")
@@ -48,6 +53,7 @@ def sign_up(client_socket):
         global current_user
         current_user = username
         start_p2p_listener()
+        send_online(username)
         return True
     else:
         print(f"Sign-up failed: {response}")
@@ -147,6 +153,7 @@ def start_client():
         listener_thread = threading.Thread(target=receive_messages, args=(client_socket, stop_listener))
         listener_thread.daemon = True # Ensure thread closes when main program exits
         listener_thread.start()
+        threading.Thread(target=online_sensor, daemon=True).start()
 
         print("\nAuthenticated successfully!")
 
@@ -155,14 +162,17 @@ def start_client():
         while True:
             message = input("> ")
             if message.lower() == "quit":
+                udp_client.sendto(f"OFFLINE:{current_user}".encode(), ("localhost",13000))
                 stop_p2p_listener()
                 current_user = None
                 client_socket.close()
+                
                 return
             
             if message.lower() == "logout":
                 print("Logging out...")
                 stop_p2p_listener()
+                udp_client.sendto(f"OFFLINE:{current_user}".encode(), ("localhost",13000))
                 current_user = None
                 stop_listener.set()
                 listener_thread.join()
@@ -320,6 +330,17 @@ def handle_incoming_file(conn):
 
     finally:
         conn.close()
+
+def online_sensor():
+    while True:
+        try:
+            message, _ = udp_client.recvfrom(1024)
+            print("\n[STATUS]", message.decode())
+        except:
+            break
+
+def send_online(username):
+    udp_client.sendto(f"{username} is online".encode(), ("localhost",13000))
 
 if __name__ == "__main__":
     start_client()
