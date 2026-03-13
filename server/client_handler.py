@@ -42,7 +42,7 @@ def handle_client(connection_socket, addr, authenticated_clients):
                 display_msg = ""
                 response_body = ""
                 include_sender_in_broadcast = False
-
+                
                 # 1. Authentication & Registration
                 if body.startswith("Authenticate/"):
                     parts = body.split("/")
@@ -61,7 +61,7 @@ def handle_client(connection_socket, addr, authenticated_clients):
                             
                             response_body = "SUCCESS|" + json.dumps(result)
                         else:
-                            response_body = "FAILURE|" + result["message"]
+                            response_body = f"FAILURE|{result['message']}"
                     else:
                         response_body = "FAILURE|Invalid format"
 
@@ -77,7 +77,7 @@ def handle_client(connection_socket, addr, authenticated_clients):
                             print(f"[AUTH] User {current_user} registered.")
                             response_body = "SUCCESS|" + json.dumps(result)
                         else:
-                            response_body = "FAILURE|" + result["message"]
+                            response_body = f"FAILURE|{result['message']}"
                     else:
                         response_body = "FAILURE|Invalid format"
 
@@ -88,9 +88,15 @@ def handle_client(connection_socket, addr, authenticated_clients):
                         cmd = parts[0].lower()
                         print(f"[CMD] {current_user} sent command: {cmd}")
 
-                        if cmd == "/pm" and len(parts) >= 3:
-                            target_user = parts[1]
-                            content = parts[2]
+                        if cmd == "/pm" and len(parts) >= 2:
+                            cmd_line = body[len(cmd):].strip()
+                            if cmd_line.startswith("<"):
+                                target_user = cmd_line[1:cmd_line.find(">")].strip()
+                                content = cmd_line[cmd_line.find(">")+1:].strip()
+                            else:
+                                pm_parts = cmd_line.split(" ", 1)
+                                target_user = pm_parts[0]
+                                content = pm_parts[1] if len(pm_parts) > 1 else ""
                             
                             chat_id = get_or_create_private_chat(current_user, target_user)
                             if chat_id:
@@ -102,9 +108,15 @@ def handle_client(connection_socket, addr, authenticated_clients):
                             else:
                                 response_body = f"User {target_user} not found."
 
-                        elif cmd == "/group" and len(parts) >= 3:
-                            group_target = parts[1]
-                            content = parts[2]
+                        elif cmd == "/group" and len(parts) >= 2:
+                            cmd_line = body[len(cmd):].strip()
+                            if cmd_line.startswith("<"):
+                                group_target = cmd_line[1:cmd_line.find(">")].strip()
+                                content = cmd_line[cmd_line.find(">")+1:].strip()
+                            else:
+                                group_parts = cmd_line.split(" ", 1)
+                                group_target = group_parts[0]
+                                content = group_parts[1] if len(group_parts) > 1 else ""
                             
                             chat = None
                             try:
@@ -133,7 +145,7 @@ def handle_client(connection_socket, addr, authenticated_clients):
                                 response_body = f"Group '{group_target}' does not exist."
 
                         elif cmd == "/create" and len(parts) >= 2:
-                            group_name = parts[1]
+                            group_name = body[len(cmd):].strip().strip("<> ")
                             chat_id = create_chat("group", name=group_name)
                             user = get_user_by_username(current_user)
                             if user:
@@ -143,7 +155,7 @@ def handle_client(connection_socket, addr, authenticated_clients):
                                 response_body = "ERROR: User identity missing."
 
                         elif cmd == "/join" and len(parts) >= 2:
-                            group_target = parts[1]
+                            group_target = body[len(cmd):].strip().strip("<> ")
                             chat = None
                             try:
                                 gid = int(group_target)
@@ -168,7 +180,7 @@ def handle_client(connection_socket, addr, authenticated_clients):
                                 response_body = f"Group '{group_target}' not found."
 
                         elif cmd == "/members" and len(parts) >= 2:
-                            group_target = parts[1]
+                            group_target = body[len(cmd):].strip().strip("<> ")
                             chat = None
                             try:
                                 gid = int(group_target)
@@ -184,7 +196,7 @@ def handle_client(connection_socket, addr, authenticated_clients):
                                 response_body = f"Group '{group_target}' not found."
 
                         elif cmd == "/broadcast":
-                            content = body[len(cmd):].strip()
+                            content = body[len(cmd):].strip().strip("<> ")
                             target_members = list(authenticated_clients.values())
                             display_msg = f"[BROADCAST from {current_user}]: {content}"
                             response_body = "Broadcast sent."
