@@ -91,39 +91,51 @@ def handle_client(connection_socket, addr, authenticated_clients):
                         if cmd == "/pm" and len(parts) >= 2:
                             cmd_line = body[len(cmd):].strip()
                             if cmd_line.startswith("<"):
-                                target_user = cmd_line[1:cmd_line.find(">")].strip()
+                                target_user_raw = cmd_line[1:cmd_line.find(">")].strip()
                                 content = cmd_line[cmd_line.find(">")+1:].strip()
                             else:
                                 pm_parts = cmd_line.split(" ", 1)
-                                target_user = pm_parts[0]
+                                target_user_raw = pm_parts[0]
                                 content = pm_parts[1] if len(pm_parts) > 1 else ""
                             
+                            # Normalize username to database casing
+                            target_user = target_user_raw
+                            db_user = get_user_by_username(target_user_raw)
+                            if db_user:
+                                target_user = dict(db_user)["username"]
+
                             chat_id = get_or_create_private_chat(current_user, target_user)
                             if chat_id:
-                                append_message(chat_id, current_user, content)
+                                # Capture the real sequence number from the DB queue
+                                msg_seq = append_message(chat_id, current_user, content)
                                 target_members = [target_user, current_user]
                                 display_msg = f"[PM with {target_user}]: {content}"
                                 response_body = "PM sent."
                                 include_sender_in_broadcast = True
+                                # Override outgoing packet sequence
+                                sequence_number = msg_seq 
                             else:
-                                response_body = f"User {target_user} not found."
+                                response_body = f"User {target_user_raw} not found."
 
                         elif cmd == "/group" and len(parts) >= 2:
                             cmd_line = body[len(cmd):].strip()
                             if cmd_line.startswith("<"):
-                                group_target = cmd_line[1:cmd_line.find(">")].strip()
+                                group_target_raw = cmd_line[1:cmd_line.find(">")].strip()
                                 content = cmd_line[cmd_line.find(">")+1:].strip()
                             else:
                                 group_parts = cmd_line.split(" ", 1)
-                                group_target = group_parts[0]
+                                group_target_raw = group_parts[0]
                                 content = group_parts[1] if len(group_parts) > 1 else ""
                             
                             chat = None
+                            group_target = group_target_raw
                             try:
-                                gid = int(group_target)
+                                gid = int(group_target_raw)
                                 chat = get_chat_by_id(gid)
                             except ValueError:
-                                chat = get_chat_by_name(group_target)
+                                chat = get_chat_by_name(group_target_raw)
+                                if chat:
+                                    group_target = dict(chat)["name"]
 
                             if chat:
                                 chat_dict = dict(chat)
@@ -131,12 +143,13 @@ def handle_client(connection_socket, addr, authenticated_clients):
                                     gid = chat_dict["chat_id"]
                                     members = [m["username"] for m in get_chat_members(gid)]
                                     if current_user in members:
-                                        append_message(gid, current_user, content)
+                                        msg_seq = append_message(gid, current_user, content)
                                         target_members = members
                                         name_str = chat_dict['name'] or f"ID {gid}"
                                         display_msg = f"[Group {name_str} - {current_user}]: {content}"
                                         response_body = "Group message sent."
                                         include_sender_in_broadcast = True
+                                        sequence_number = msg_seq
                                     else:
                                         response_body = "You are not a member of this group."
                                 else:
@@ -208,11 +221,13 @@ def handle_client(connection_socket, addr, authenticated_clients):
                     else:
                         # Global Chat
                         global_id = get_or_create_global_chat()
-                        append_message(global_id, current_user, body)
+                        msg_seq = append_message(global_id, current_user, body)
                         target_members = list(authenticated_clients.values())
                         display_msg = f"{current_user}: {body}"
-                        response_body = "Global message sent."
+                        # For global chat, the broadcast IS the confirmation, so we leave response_body empty
+                        response_body = "" 
                         include_sender_in_broadcast = True
+                        sequence_number = msg_seq
 
                 else:
                     response_body = "Please login first."

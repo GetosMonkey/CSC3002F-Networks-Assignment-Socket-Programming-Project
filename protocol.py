@@ -10,15 +10,20 @@ def encode_packet(sequence_number, message_type, body_text):
 def receive_packet(sock):
     """
     Reads and parses a 'SEQ|TYPE|BODY' message from the socket.
+    Uses a simple loop to read until a newline character is found,
+    ensuring we don't 'over-read' multiple packets at once.
     """
     try:
-        # Simple read for now - for a production app, we would use a more robust
-        # framing method, but this fits the "minimal and concise" requirement.
-        data = sock.recv(4096)
-        if not data:
-            return None, None, None # Connection closed
+        data_buffer = b""
+        while True:
+            char = sock.recv(1)
+            if not char:
+                return None, None, None # Connection closed
+            if char == b'\n':
+                break
+            data_buffer += char
             
-        full_text = data.decode('utf-8').strip()
+        full_text = data_buffer.decode('utf-8').strip()
         if not full_text:
             return 0, "EMPTY", ""
 
@@ -29,7 +34,6 @@ def receive_packet(sock):
             body = parts[2]
             return seq, msg_type, body
         else:
-            # Fallback for old/malformed messages during development
             return 1, "DATA", full_text
     except Exception:
         return None, None, None

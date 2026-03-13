@@ -22,6 +22,9 @@ def start_server():
 
     print(f"TCP Server is ready to receive connections on port {SERVER_PORT}...")
 
+    # Start UDP handler in a separate thread
+    threading.Thread(target=udp_server_handler, daemon=True).start()
+
     while True:
         connection_socket, addr = server_socket.accept()
         print(f"New connection from {addr}")
@@ -30,6 +33,24 @@ def start_server():
             target=handle_client,
             args=(connection_socket, addr, authenticated_clients) # Pass the list
         ).start()
+
+def udp_server_handler():
+    udp_port = 13000
+    udp_server = socket(AF_INET, SOCK_DGRAM)
+    udp_server.bind(('', udp_port))
+    udp_clients = []
+    print(f"UDP Status Server ready on port {udp_port}...")
+    while True:
+        try:
+            message, addr = udp_server.recvfrom(1024)
+            if addr not in udp_clients:
+                udp_clients.append(addr)
+            for client in udp_clients:
+                if client != addr:
+                    udp_server.sendto(message, client)
+        except Exception as e:
+            print(f"UDP server error: {e}")
+            break
 
 
     print(f"Connection closed: {addr}")

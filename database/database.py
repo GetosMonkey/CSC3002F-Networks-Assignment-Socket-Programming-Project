@@ -251,8 +251,8 @@ def append_message(chat_id, sender, message):
     
     # Local import to avoid circular dependency
     from .message_queue import manager as queue_manager
-    queue_manager.queue_message(actual_chat_id, sender_id, message)
-    return True
+    seq = queue_manager.queue_message(actual_chat_id, sender_id, message)
+    return seq
 
 def get_or_create_private_chat(username1, username2):
     """Finds an existing DM between two users or creates one."""
@@ -290,3 +290,21 @@ def get_all_groups():
     rows = cur.fetchall()
     conn.close()
     return rows
+
+def update_user_port(username, port):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE users SET port_number = ? WHERE username = ?",
+        (port, username)
+    )
+    conn.commit()
+    conn.close()
+
+def get_user_port(username):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT port_number FROM users WHERE username = ?", (username,))
+    row = cur.fetchone()
+    conn.close()
+    return row["port_number"] if row else None
