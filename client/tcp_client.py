@@ -124,6 +124,11 @@ def show_commands():
     print("3. Send File (Syntax: /file <user> <filename> OR /file <group_name> <filename> )")
     print("4. Create New Group (Syntax: /create <group_name>)")
     print("5. Join Group (Syntax: /join <group_id>)")
+    print("1. Private Message (Syntax: /pm <user> <message>)")
+    print("2. Message Group (Syntax: /group <group_id> <message>)")
+    print("3. Send File (Syntax: /file <user> <filename> OR /file <group_name> <filename> )")
+    print("4. Create New Group (Syntax: /create <group_name>)")
+    print("5. Join Group (Syntax: /join <group_id>)")
     print("Type 'logout' to return to menu.")
     print("Type 'quit' to exit.")
 
@@ -295,6 +300,7 @@ def receive_messages(client_socket, stop_event):
 
 # Starts the client and handles the orchestration of our frontend, equivalent to a main class
 def start_client():
+    global current_user
     client_socket = socket(AF_INET, SOCK_STREAM)
     try:
         client_socket.connect((SERVER_HOST, SERVER_PORT))
@@ -329,6 +335,7 @@ def start_client():
         threading.Thread(target=online_sensor, daemon=True).start()
 
         print("\nAuthenticated successfully!")
+
         show_commands()
 
         while True:
@@ -336,6 +343,7 @@ def start_client():
             if message.lower() == "quit":
                 stop_p2p_listener()
                 client_socket.close()
+                
                 return
             
             if message.lower() == "logout":
@@ -356,5 +364,164 @@ def start_client():
             
             client_socket.sendall(encode_packet(0, "DATA", message))
 
+def fileshare(message):
+    parts = message.split(" ")
+    if len(parts) < 3:
+        print("Incorrect syntax used for file sharing, please specify all required arguments.")
+        return
+
+    target = parts[1]
+    filename = parts[2]
+
+    if not os.path.exists(filename):
+        print(f"File '{filename}' does not exist!")
+        return
+
+    # If target is a username
+    if get_user_by_username(target) is not None:
+        send_file_to_user(target, filename)
+        return
+
+    # Otherwise try target as a numeric group id
+    # Otherwise try target as a numeric group id
+    try:
+        group_id = int(target)
+        members = get_chat_members(group_id)
+        if members:
+            send_file_to_group(group_id, filename)
+        else:
+            print("Receiver provided is not valid.")
+    except ValueError:
+        print("Receiver provided is not valid.")
+
+def send_file_to_user(id, filename):
+    file_socket = None
+    try:
+        file_socket = socket(AF_INET, SOCK_STREAM)
+        port = get_user_port(id)
+
+        if not port:
+            print(f"User {id} is not online.")
+            return
+
+        file_socket.connect(("localhost", int(port)))
+
+        filesize = os.path.getsize(filename)
+        safe_filename = os.path.basename(filename)
+
+        safe_filename = os.path.basename(filename)
+        header = f"FILE|{safe_filename}|{filesize}\n"
+        file_socket.sendall(header.encode())
+
+        with open(filename, "rb") as f:
+            while True:
+                chunk = f.read(4096)
+                if not chunk:
+                    break
+                file_socket.sendall(chunk)
+
+        print("File sent successfully.")
+
+    except Exception as e:
+        print("Error sending file:", e)
+
+    finally:
+        if file_socket is not None:
+            file_socket.close()
+
+def send_file_to_group(group_id, filename):
+    members = get_chat_members(group_id)
+    if not members:
+        print("Group not found or has no members.")
+        return
+
+    for member in members:
+        username = member["username"]
+        if username != current_user:
+            send_file_to_user(username, filename)
+
+def p2p_client():
+    global file_server_socket, file_server_port, current_user, file_server_running
+
+    try:
+        file_server_socket = socket(AF_INET, SOCK_STREAM)
+        file_server_socket.bind(("localhost", 0))   # 0 = OS picks a free random port
+        file_server_socket.listen()
+
+        file_server_port = file_server_socket.getsockname()[1]
+        update_user_port(current_user, file_server_port)
+
+        print("File server running on port:", file_server_port)
+
+        while True:
+            try:
+                conn, addr = file_server_socket.accept()
+                threading.Thread(target=handle_incoming_file, args=(conn,), daemon=True).start()
+            except OSError:
+                break
+
+    except Exception as e:
+        file_server_running = False
+        print("Error starting P2P file server:", e)
+
+def handle_incoming_file(conn):
+    try:
+        # Read until header newline
+        data = b""
+        while b"\n" not in data:
+            chunk = conn.recv(1024)
+            if not chunk:
+                print("Connection closed before header was received.")
+                return
+            data += chunk
+
+        header_bytes, remaining_data = data.split(b"\n", 1)
+        header = header_bytes.decode()
+
+        if not header.startswith("FILE|"):
+            print("Invalid file header")
+            return
+
+        # Header format: FILE|filename|filesize
+        _, filename, filesize = header.split("|", 2)
+        filesize = int(filesize)
+
+        os.makedirs("received_files", exist_ok=True)
+        save_path = os.path.join("received_files", f"received_{filename}")
+
+        with open(save_path, "wb") as f:
+            # Write any file bytes that already arrived with the header
+            if remaining_data:
+                f.write(remaining_data)
+
+            remaining = filesize - len(remaining_data)
+
+            while remaining > 0:
+                chunk = conn.recv(min(4096, remaining))
+                if not chunk:
+                    break
+                f.write(chunk)
+                remaining -= len(chunk)
+
+        print(f"Received file: {filename}, saved as {save_path}")
+
+    except Exception as e:
+        print("Error receiving file:", e)
+
+    finally:
+        conn.close()
+
+def online_sensor():
+    while True:
+        try:
+            message, _ = udp_client.recvfrom(1024)
+            print("\n[STATUS]", message.decode())
+        except:
+            break
+
+def send_online(username):
+    udp_client.sendto(f"{username} is online".encode(), ("localhost",13000))
+
 if __name__ == "__main__":
     start_client()
+    
