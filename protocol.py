@@ -23,7 +23,7 @@ def receive_packet(sock):
                 break
             data_buffer += char
             
-        full_text = data_buffer.decode('utf-8').strip()
+        full_text = data_buffer.decode('utf-8', errors='replace').strip()
         if not full_text:
             return 0, "EMPTY", ""
 
@@ -35,6 +35,9 @@ def receive_packet(sock):
             return seq, msg_type, body
         else:
             return 1, "DATA", full_text
-    except Exception:
+    except EOFError:
         return None, None, None
+    except Exception:
+        # Re-raise to let caller handle timeouts
+        raise
     

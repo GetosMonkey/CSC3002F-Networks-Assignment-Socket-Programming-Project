@@ -114,7 +114,7 @@ def handle_client(connection_socket, addr, authenticated_clients):
                                 # Capture the real sequence number from the DB queue
                                 msg_seq = append_message(chat_id, current_user, content)
                                 target_members = [target_user]
-                                display_msg = f"[PM from {current_user}]: {content}"
+                                display_msg = f"[RECEIVED] PM from {current_user}: {content}"
                                 response_body = f"[PM to {target_user}]: {content}"
                                 include_sender_in_broadcast = False
                                 sequence_number = msg_seq 
@@ -150,7 +150,7 @@ def handle_client(connection_socket, addr, authenticated_clients):
                                         msg_seq = append_message(gid, current_user, content)
                                         target_members = members
                                         name_str = chat_dict['name'] or f"ID {gid}"
-                                        display_msg = f"[Group {name_str}] {current_user}: {content}"
+                                        display_msg = f"[RECEIVED] Group {name_str} from {current_user}: {content}"
                                         response_body = "" # Broadcast is confirmation
                                         include_sender_in_broadcast = True
                                         sequence_number = msg_seq
@@ -227,7 +227,7 @@ def handle_client(connection_socket, addr, authenticated_clients):
                         global_id = get_or_create_global_chat()
                         msg_seq = append_message(global_id, current_user, body)
                         target_members = list(authenticated_clients.values())
-                        display_msg = f"{current_user}: {body}"
+                        display_msg = f"[RECEIVED] Global from {current_user}: {body}"
                         # For global chat, the broadcast IS the confirmation, so we leave response_body empty
                         response_body = "" 
                         include_sender_in_broadcast = True

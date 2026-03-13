@@ -285,8 +285,8 @@ def receive_messages(client_socket, stop_event):
                 continue
             
             # Only print newlines if it doesn't look like a direct confirmation
-            prefix = "\n" if not message.startswith("CONFIRM:") else ""
-            print(f"{prefix}<< {message}")
+            prefix = "\n" if not (message.startswith("CONFIRM:") or message.startswith("[PM to")) else ""
+            print(f"{prefix}{message}")
         except timeout:
             continue
         except Exception as e:
