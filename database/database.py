@@ -16,7 +16,8 @@ def create_user(username, password_hash):
         )
         conn.commit()
         return cur.lastrowid
-    except Exception:
+    except Exception as e:
+        print(f"Error creating user: {e}")  # ← Add this for debugging
         return None
     finally:
         conn.close()
@@ -36,6 +37,9 @@ def verify_login(username, password_hash):
     row = cur.fetchone()
     conn.close()
     return row
+
+def check_auth(username, password_hash):
+    return verify_login(username, password_hash)
 
 def delete_user(user_id):
     conn = get_connection()
@@ -64,7 +68,7 @@ def register_user(username, password):
 def create_chat(chat_type, name=None):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("INSERT INTO chats (chat_type, name) VALUES (?)", (chat_type, name))
+    cur.execute("INSERT INTO chats (chat_type) VALUES (?)", (chat_type, name))
     conn.commit()
     chat_id = cur.lastrowid
     conn.close()
@@ -72,15 +76,14 @@ def create_chat(chat_type, name=None):
 
 def add_user_to_chat(chat_id, user_id):
     conn = get_connection()
-    cur = conn.cursor()
     try:
-        cur.execute("INSERT INTO chat_members (chat_id, user_id) VALUES (?, ?)", (chat_id, user_id))
+        conn.execute("INSERT INTO chat_members (chat_id, user_id) VALUES (?, ?)", (chat_id, user_id))
         conn.commit()
-        return True
-    except Exception:
-        return False
+    except:
+        pass # If it fails (like a duplicate user), just ignore it and move on
     finally:
         conn.close()
+    return True
 
 def get_user_chats(user_id):
     conn = get_connection()
@@ -107,7 +110,7 @@ def get_chat_members(chat_name):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        SELECT u.* FROM users u
+        SELECT u.username FROM users u
         JOIN chat_members cm ON u.user_id = cm.user_id
         WHERE cm.chat_id = ?
         ORDER BY u.user_id ASC
@@ -116,7 +119,26 @@ def get_chat_members(chat_name):
     conn.close()
     return rows
 
+def get_chat_by_id(chat_id):
+    """Fetches details of a specific chat."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM chats WHERE chat_id = ?", (chat_id,))
+    row = cur.fetchone()
+    conn.close()
+    return row
+
+def get_chat_by_name(name):
+    """Fetches details of a specific chat by its name."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM chats WHERE name = ? AND chat_type = 'group'", (name,))
+    row = cur.fetchone()
+    conn.close()
+    return row
+
 def get_or_create_global_chat():
+    """Simple helper for the global channel (Assuming ID 1 is Global)."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT chat_id FROM chats WHERE chat_type = 'group' ORDER BY chat_id ASC LIMIT 1")
@@ -213,3 +235,40 @@ def get_user_port(username):
     from server.message_queue import manager as queue_manager
     queue_manager.queue_message(actual_chat_id, sender_id, message)
     return True
+
+def get_or_create_private_chat(username1, username2):
+    """Finds an existing DM between two users or creates one."""
+    user1 = get_user_by_username(username1)
+    user2 = get_user_by_username(username2)
+    if not user1 or not user2: return None
+
+    conn = get_connection()
+    cur = conn.cursor()
+    # Check for existing private chat between these two
+    cur.execute("""
+        SELECT cm1.chat_id FROM chat_members cm1
+        JOIN chat_members cm2 ON cm1.chat_id = cm2.chat_id
+        JOIN chats c ON cm1.chat_id = c.chat_id
+        WHERE c.chat_type = 'private' AND cm1.user_id = ? AND cm2.user_id = ?
+    """, (user1['user_id'], user2['user_id']))
+    
+    row = cur.fetchone()
+    conn.close()
+
+    if row:
+        return row['chat_id']
+    else:
+        # Create new private chat
+        # Set name to target user's username as per request
+        new_id = create_chat('private', name=username2)
+        add_user_to_chat(new_id, user1['user_id'])
+        add_user_to_chat(new_id, user2['user_id'])
+        return new_id
+
+def get_all_groups():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT chat_id, name FROM chats WHERE chat_type = 'group'")
+    rows = cur.fetchall()
+    conn.close()
+    return rows

@@ -3,7 +3,6 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
-    email TEXT UNIQUE,
     password_hash TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     port_number INTEGER
@@ -11,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS chats (
     chat_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
     chat_type TEXT NOT NULL CHECK(chat_type IN ('private', 'group')),
     name TEXT UNIQUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP

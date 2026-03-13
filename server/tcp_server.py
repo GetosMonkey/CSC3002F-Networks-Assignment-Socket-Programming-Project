@@ -15,7 +15,13 @@ udp_server = socket(AF_INET, SOCK_DGRAM)
 udp_server.bind(("localhost", UDP_PORT))
 udp_clients = []
 
-active_clients = [] # Shared list for broadcasting
+UDP_PORT = 13000
+udp_server = socket(AF_INET, SOCK_DGRAM)
+udp_server.bind(("localhost", UDP_PORT))
+udp_clients = []
+
+#active_clients = [] # Shared list for broadcasting
+authenticated_clients = []
 
 # Creates/starts a multithreaded TCP server connected to por 12001 that loops infinitely to accept new ConnectionResetError
 # For every new client a new thread is made/opened
@@ -33,7 +39,7 @@ def start_server():
         threading.Thread(target=udp_server_handler, daemon=True).start()
         threading.Thread(
             target=handle_client,
-            args=(connection_socket, addr, active_clients) # Pass the list
+            args=(connection_socket, addr, authenticated_clients) # Pass the list
         ).start()
         
 
