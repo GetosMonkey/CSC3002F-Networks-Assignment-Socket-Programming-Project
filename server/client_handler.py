@@ -108,11 +108,10 @@ def handle_client(connection_socket, addr, authenticated_clients):
                             if chat_id:
                                 # Capture the real sequence number from the DB queue
                                 msg_seq = append_message(chat_id, current_user, content)
-                                target_members = [target_user, current_user]
-                                display_msg = f"[PM with {target_user}]: {content}"
-                                response_body = "PM sent."
-                                include_sender_in_broadcast = True
-                                # Override outgoing packet sequence
+                                target_members = [target_user]
+                                display_msg = f"[PM from {current_user}]: {content}"
+                                response_body = f"[PM to {target_user}]: {content}"
+                                include_sender_in_broadcast = False
                                 sequence_number = msg_seq 
                             else:
                                 response_body = f"User {target_user_raw} not found."
@@ -146,8 +145,8 @@ def handle_client(connection_socket, addr, authenticated_clients):
                                         msg_seq = append_message(gid, current_user, content)
                                         target_members = members
                                         name_str = chat_dict['name'] or f"ID {gid}"
-                                        display_msg = f"[Group {name_str} - {current_user}]: {content}"
-                                        response_body = "Group message sent."
+                                        display_msg = f"[Group {name_str}] {current_user}: {content}"
+                                        response_body = "" # Broadcast is confirmation
                                         include_sender_in_broadcast = True
                                         sequence_number = msg_seq
                                     else:
@@ -212,7 +211,7 @@ def handle_client(connection_socket, addr, authenticated_clients):
                             content = body[len(cmd):].strip().strip("<> ")
                             target_members = list(authenticated_clients.values())
                             display_msg = f"[BROADCAST from {current_user}]: {content}"
-                            response_body = "Broadcast sent."
+                            response_body = "" # Broadcast is confirmation
                             include_sender_in_broadcast = True
 
                         else:
