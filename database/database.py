@@ -70,8 +70,7 @@ def handle_register(username, password):
         
         return {
             "status": "SUCCESS",
-            "user_id": user_id,
-            "username": username,
+            "user": {"user_id": user_id, "username": username},
             "message": "Registration successful!"
         }
     else:
