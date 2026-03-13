@@ -1,14 +1,17 @@
+import sys, os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from socket import *
 import threading
+import json
+from protocol import receive_packet, encode_packet
 
 SERVER_HOST = "localhost"
 SERVER_PORT = 12001
 
 def authenticate(username, password, client_socket):
     message_string = "Authenticate/" + username + "/" + password
-    client_socket.send(message_string.encode())
-
-import json
+    client_socket.sendall(encode_packet(0, "AUTH", message_string))
 
 def display_history(data_json):
     try:
@@ -48,14 +51,15 @@ def login(client_socket):
     username = input("Enter username: ")
     password = input("Enter password:  ")
     authenticate(username, password, client_socket)
-    response = client_socket.recv(4096).decode().strip()
-    if response.startswith("SUCCESS"):
+    
+    _, _, response = receive_packet(client_socket)
+    if response and response.startswith("SUCCESS"):
         if "|" in response:
             _, data_json = response.split("|", 1)
             display_history(data_json)
         return True
     else:
-        msg = response.split("|")[1] if "|" in response else response
+        msg = response.split("|")[1] if response and "|" in response else (response or "Connection lost")
         print(f"Login failed! (Server said: {msg})")
         return False
 
@@ -64,16 +68,17 @@ def sign_up(client_socket):
     username = input("Enter a new username: ")
     password = input("Enter a new password: ")
     message_string = "NewUser" + "/" + username + "/" + password
-    client_socket.send(message_string.encode())
-    response = client_socket.recv(4096).decode().strip()
-    if response.startswith("SUCCESS"):
+    client_socket.sendall(encode_packet(0, "AUTH", message_string))
+    
+    _, _, response = receive_packet(client_socket)
+    if response and response.startswith("SUCCESS"):
         print("Sign-up successful!")
         if "|" in response:
             _, data_json = response.split("|", 1)
             display_history(data_json)
         return True
     else:
-        msg = response.split("|")[1] if "|" in response else response
+        msg = response.split("|")[1] if response and "|" in response else (response or "Connection lost")
         print(f"Sign-up failed: {msg}")
         return False
 
@@ -103,17 +108,20 @@ def receive_messages(client_socket, stop_event):
     while not stop_event.is_set():
         try:
             client_socket.settimeout(1.0) 
-            try:
-                message = client_socket.recv(1024).decode().strip()
-                if not message:
-                    break
-                # Only print newlines if it doesn't look like a direct confirmation
-                prefix = "\n" if not message.startswith("CONFIRM:") else ""
-                print(f"{prefix}<< {message}")
-            except timeout:
+            _, _, message = receive_packet(client_socket)
+            if message is None:
+                # receive_packet returns None when connection is closed
+                break
+            if not message:
                 continue
-        except:
-            print("\nDisconnected from server.")
+            
+            # Only print newlines if it doesn't look like a direct confirmation
+            prefix = "\n" if not message.startswith("CONFIRM:") else ""
+            print(f"{prefix}<< {message}")
+        except timeout:
+            continue
+        except Exception as e:
+            print(f"\nDisconnected from server: {e}")
             break
 
 # Starts the client and handles the orchestration of our frontend, equivalent to a main class
@@ -171,7 +179,7 @@ def start_client():
                 # This regex finds <text> and replaces it with text
                 message = re.sub(r'<([^>]+)>', r'\1', message)
             
-            client_socket.send(message.encode())
+            client_socket.sendall(encode_packet(0, "DATA", message))
 
 if __name__ == "__main__":
     start_client()

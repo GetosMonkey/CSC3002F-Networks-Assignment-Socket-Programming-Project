@@ -1,23 +1,36 @@
 def encode_packet(sequence_number, message_type, body_text):
     """
-    Encodes a message into a simple text format followed by a newline.
-    (Kept simple to be compatible with a raw socket client like telnet or `tcp_client.py`)
+    Encodes a message into 'SEQ|TYPE|BODY' format followed by a newline.
     """
-    if not body_text.endswith('\n'):
-        body_text += '\n'
-    return body_text.encode('utf-8')
+    packet_str = f"{sequence_number}|{message_type}|{body_text}"
+    if not packet_str.endswith('\n'):
+        packet_str += '\n'
+    return packet_str.encode('utf-8')
 
 def receive_packet(sock):
     """
-    Reads a simple string message from the socket.
+    Reads and parses a 'SEQ|TYPE|BODY' message from the socket.
     """
     try:
-        data = sock.recv(1024)
+        # Simple read for now - for a production app, we would use a more robust
+        # framing method, but this fits the "minimal and concise" requirement.
+        data = sock.recv(4096)
         if not data:
             return None, None, None # Connection closed
             
-        body_text = data.decode('utf-8').strip()
-        return 1, "DATA", body_text
+        full_text = data.decode('utf-8').strip()
+        if not full_text:
+            return 0, "EMPTY", ""
+
+        parts = full_text.split('|', 2)
+        if len(parts) == 3:
+            seq = int(parts[0])
+            msg_type = parts[1]
+            body = parts[2]
+            return seq, msg_type, body
+        else:
+            # Fallback for old/malformed messages during development
+            return 1, "DATA", full_text
     except Exception:
         return None, None, None
     

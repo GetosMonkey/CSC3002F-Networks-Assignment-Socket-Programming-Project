@@ -15,7 +15,7 @@ class ChatQueue:
         self.worker_thread.start()
 
     def _get_initial_sequence(self):
-        from database.database import get_last_sequence
+        from .database import get_last_sequence
         return get_last_sequence(self.chat_id) + 1
 
     def push(self, sender_id, content, message_type="text"):
@@ -34,7 +34,7 @@ class ChatQueue:
         Worker thread that drains the queue and performs database insertions.
         Ensures that heavy write activity doesn't block the main server threads.
         """
-        from database.database import save_message
+        from .database import save_message
         while True:
             sender_id, content, message_type, seq = self.queue.get()
             try:
