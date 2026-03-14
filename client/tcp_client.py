@@ -270,7 +270,10 @@ def online_sensor():
             break
 
 def send_online(username):
-    udp_client.sendto(f"{username} is online".encode(), ("localhost", 13000))
+    udp_client.sendto(f"{username} is online".encode(), ("localhost", 13000)) 
+
+def send_offline(username):
+    udp_client.sendto(f"{username} is offline".encode(), ("localhost", 13000)) 
 
 # Continuously listens for messages from the server and prints them to the terminal
 def receive_messages(client_socket, stop_event):
@@ -341,6 +344,7 @@ def start_client():
             if message.lower() == "logout":
                 print("Logging out...")
                 stop_p2p_listener()
+                send_offline(current_user)
                 stop_listener.set() # Stop the background thread
                 listener_thread.join() # Wait for it to exit
                 client_socket.settimeout(None)
