@@ -3,9 +3,11 @@ from .db_connection import get_connection
 
 # --- User Functions ---
 
+# Hashes a plain text password using SHA-256
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
+# Creates a new user in the database
 def create_user(username, password_hash):
     conn = get_connection()
     cur = conn.cursor()
@@ -17,11 +19,13 @@ def create_user(username, password_hash):
         conn.commit()
         return cur.lastrowid
     except Exception as e:
+        # Prints database error for debugging
         print(f"Error creating user: {e}")  # ← Add this for debugging
         return None
     finally:
         conn.close()
 
+# Gets a user row by username
 def get_user_by_username(username):
     conn = get_connection()
     cur = conn.cursor()
@@ -30,6 +34,7 @@ def get_user_by_username(username):
     conn.close()
     return row
 
+# Verifies login by matching username and password hash
 def verify_login(username, password_hash):
     conn = get_connection()
     cur = conn.cursor()
@@ -39,6 +44,7 @@ def verify_login(username, password_hash):
     return row
 
 
+# Deletes a user by user_id
 def delete_user(user_id):
     conn = get_connection()
     cur = conn.cursor()
@@ -49,6 +55,7 @@ def delete_user(user_id):
     return deleted > 0
 
 
+# Handles registration and automatically adds the user to the global chat
 def handle_register(username, password):
     """Handle user registration and auto-join global chat (Consolidated from db_handler)"""
     # Check if username exists
@@ -79,6 +86,7 @@ def handle_register(username, password):
             "message": "Registration failed due to server error."
         }
 
+# Handles login and loads the user's chats and recent messages
 def handle_login(username, password):
     """Handle user login and aggregate their chat data (Consolidated from db_handler)"""
     password_hash = hash_password(password)
@@ -114,6 +122,7 @@ def handle_login(username, password):
 
 # --- Chat Functions ---
 
+# Creates a new chat and returns its ID
 def create_chat(chat_type, name=None):
     """Creates a new chat (private or group) and returns its ID."""
     conn = get_connection()
@@ -124,6 +133,7 @@ def create_chat(chat_type, name=None):
     conn.close()
     return chat_id
 
+# Adds a user to a chat
 def add_user_to_chat(chat_id, user_id):
     """Links a user to a specific chat."""
     import sqlite3
@@ -137,11 +147,13 @@ def add_user_to_chat(chat_id, user_id):
         # User is already a member, which is fine
         return True
     except Exception as e:
+        # Prints database error for debugging
         print(f"[DB ERROR] add_user_to_chat error: {e}")
         return False
     finally:
         conn.close()
 
+# Gets all chats that a user belongs to
 def get_user_chats(user_id):
     conn = get_connection()
     cur = conn.cursor()
@@ -155,6 +167,7 @@ def get_user_chats(user_id):
     conn.close()
     return rows
 
+# Gets usernames of all members in a chat
 def get_chat_members(chat_id):
     conn = get_connection()
     cur = conn.cursor()
@@ -167,6 +180,7 @@ def get_chat_members(chat_id):
     conn.close()
     return rows
 
+# Gets one chat by its ID
 def get_chat_by_id(chat_id):
     """Fetches details of a specific chat."""
     conn = get_connection()
@@ -176,6 +190,7 @@ def get_chat_by_id(chat_id):
     conn.close()
     return row
 
+# Gets a group chat by its name
 def get_chat_by_name(name):
     """Fetches details of a specific chat by its name."""
     conn = get_connection()
@@ -185,6 +200,7 @@ def get_chat_by_name(name):
     conn.close()
     return row
 
+# Gets the global chat if it exists, otherwise creates it
 def get_or_create_global_chat():
     """Simple helper for the global channel (Assuming ID 1 is Global)."""
     conn = get_connection()
@@ -200,6 +216,7 @@ def get_or_create_global_chat():
 
 # --- Message Functions ---
 
+# Saves a message into the messages table
 def save_message(chat_id, sender_id, content, sequence_number, message_type="text"):
     conn = get_connection()
     cur = conn.cursor()
@@ -211,6 +228,7 @@ def save_message(chat_id, sender_id, content, sequence_number, message_type="tex
     conn.close()
     return sequence_number
 
+# Gets the highest sequence number currently in a chat
 def get_last_sequence(chat_id):
     conn = get_connection()
     cur = conn.cursor()
@@ -219,6 +237,7 @@ def get_last_sequence(chat_id):
     conn.close()
     return result
 
+# Gets all messages from a chat in order
 def get_messages(chat_id):
     conn = get_connection()
     cur = conn.cursor()
@@ -227,6 +246,7 @@ def get_messages(chat_id):
     conn.close()
     return rows
 
+# Gets the most recent messages from a chat
 def get_recent_messages(chat_id, limit=20):
     conn = get_connection()
     cur = conn.cursor()
@@ -238,6 +258,7 @@ def get_recent_messages(chat_id, limit=20):
     conn.close()
     return list(reversed(rows))
 
+# Adds a message to the queue manager for proper sequencing
 def append_message(chat_id, sender, message):
     user = get_user_by_username(sender)
     if user is None:
@@ -253,6 +274,7 @@ def append_message(chat_id, sender, message):
     seq = queue_manager.queue_message(actual_chat_id, sender_id, message)
     return seq
 
+# Gets an existing private chat between two users or creates a new one
 def get_or_create_private_chat(username1, username2):
     """Finds an existing DM between two users or creates one."""
     user1 = get_user_by_username(username1)
@@ -282,6 +304,7 @@ def get_or_create_private_chat(username1, username2):
         add_user_to_chat(new_id, user2['user_id'])
         return new_id
 
+# Gets all group chats
 def get_all_groups():
     conn = get_connection()
     cur = conn.cursor()
@@ -290,6 +313,7 @@ def get_all_groups():
     conn.close()
     return rows
 
+# Updates the saved port number for a user
 def update_user_port(username, port):
     conn = get_connection()
     cur = conn.cursor()
@@ -300,6 +324,7 @@ def update_user_port(username, port):
     conn.commit()
     conn.close()
 
+# Gets the saved port number for a user
 def get_user_port(username):
     conn = get_connection()
     cur = conn.cursor()
