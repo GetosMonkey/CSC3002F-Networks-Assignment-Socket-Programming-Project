@@ -1,18 +1,14 @@
+
+# Encodes a message into 'SEQ|TYPE|BODY' format followed by a newline.
 def encode_packet(sequence_number, message_type, body_text):
-    """
-    Encodes a message into 'SEQ|TYPE|BODY' format followed by a newline.
-    """
+    
     packet_str = f"{sequence_number}|{message_type}|{body_text}"
     if not packet_str.endswith('\n'):
         packet_str += '\n'
     return packet_str.encode('utf-8')
 
+# Reads and parses a 'SEQ|TYPE|BODY' message from the socket byte by byte until finding a newline
 def receive_packet(sock):
-    """
-    Reads and parses a 'SEQ|TYPE|BODY' message from the socket.
-    Uses a simple loop to read until a newline character is found,
-    ensuring we don't 'over-read' multiple packets at once.
-    """
     try:
         data_buffer = b""
         while True:

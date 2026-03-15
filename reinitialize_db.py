@@ -1,12 +1,11 @@
 import sqlite3
 from pathlib import Path
 
-# Use the same path resolution logic as your database connection
-# This makes it impossible for them to look at different files
 project_root = Path(__file__).resolve().parent
 db_path = project_root / "database" / "chat_app.db"
 schema_path = project_root / "database" / "schema.sql"
 
+# Deletes the existing chat_app.db file and reinitializes it with the schema.sql file
 def reinitialize():
     # 1. Ensure the server is stopped before running this!
     if db_path.exists():

@@ -9,10 +9,9 @@ from database.database import (
 
 import json
 
+# Sends a packet to all members of a chat
+# If include_sender is True, the sender will also receive the packet
 def send_to_members(packet, member_usernames, sender_socket, authenticated_clients, include_sender=False):
-    """Delivers packets only to specific users who are currently online and cleans up dead sockets."""
-    # Convert member_usernames to a set for faster lookups and case-insensitive check if needed
-    # but for now we stick to database casing consistency.
     delivered_count = 0
     for client_socket, username in list(authenticated_clients.items()):
         if username in member_usernames:
@@ -31,6 +30,7 @@ def send_to_members(packet, member_usernames, sender_socket, authenticated_clien
                     pass
     return delivered_count
 
+# Handles a client connection and manages the lifecycle of the client
 def handle_client(connection_socket, addr, authenticated_clients):
     current_user = None
     print(f"[INFO] New client handler started for {addr}")
@@ -216,7 +216,7 @@ def handle_client(connection_socket, addr, authenticated_clients):
                             content = body[len(cmd):].strip().strip("<> ")
                             target_members = list(authenticated_clients.values())
                             display_msg = f"[BROADCAST from {current_user}]: {content}"
-                            response_body = "" # Broadcast is confirmation
+                            response_body = "" 
                             include_sender_in_broadcast = True
 
                         else:
@@ -228,7 +228,6 @@ def handle_client(connection_socket, addr, authenticated_clients):
                         msg_seq = append_message(global_id, current_user, body)
                         target_members = list(authenticated_clients.values())
                         display_msg = f"[RECEIVED] Global from {current_user}: {body}"
-                        # For global chat, the broadcast IS the confirmation, so we leave response_body empty
                         response_body = "" 
                         include_sender_in_broadcast = True
                         sequence_number = msg_seq
@@ -238,7 +237,6 @@ def handle_client(connection_socket, addr, authenticated_clients):
 
                 # Transmission
                 if display_msg and target_members:
-                    # Use sequence number from the incoming packet or 0 for now
                     packet = encode_packet(sequence_number or 0, "DATA", display_msg)
                     count = send_to_members(packet, target_members, connection_socket, authenticated_clients, include_sender=include_sender_in_broadcast)
                     print(f"[BROADCAST] Target: {target_members}, Delivered to: {count} users.")
